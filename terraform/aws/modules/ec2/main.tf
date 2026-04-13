@@ -1,3 +1,7 @@
+resource "aws_key_pair" "deployer" {
+  key_name = "${var.project_name}-${var.env}-key"
+  public_key = file("${var.key_path}")
+}
 
 data "aws_ami" "amazon_linux_2023" {
   most_recent = true
@@ -21,12 +25,11 @@ data "aws_ami" "amazon_linux_2023" {
 
 resource "aws_instance" "ec2" {
   ami = data.aws_ami.amazon_linux_2023.id
-  vpc_id = module.networking.vpc_id  
-  subnet_id = module.networking.public_subnet_1a.id
+  subnet_id = var.subnet_id
   instance_type = var.ec2_instance_type
-  key_name = "${var.project_name}-${var.env}-ec2.key"
+  key_name = aws_key_pair.deployer.key_name
   associate_public_ip_address = true
-  security_groups = [modules.security_group.web_public.id]
+  security_groups = var.security_groups
   count = var.ec2_instance_count
 
   root_block_device {
@@ -41,7 +44,7 @@ resource "aws_instance" "ec2" {
   }
 
   disable_api_termination = true
-  iam_instance_profile = module.iam.aws_iam_instance_profile.profile
+  iam_instance_profile = var.iam_instance_profile
   monitoring = true
 
   metadata_options {
@@ -58,17 +61,17 @@ resource "aws_instance" "ec2" {
 }
 
 output "ec2_instance_id" {
-  value       = aws_instance.ec2.data.aws_ami.amazon_linux_2023.id
+  value       = aws_instance.ec2[*].id
 }
 
 output "ec2_public_ip" {
-  value       = aws_instance.ec2.public_ip
+  value       = aws_instance.ec2[*].public_ip
 }
 
 output "ec2_private_ip" {
-  value       = aws_instance.ec2.private_ip
+  value       = aws_instance.ec2[*].private_ip
 }
 
 output "ec2_ami_id" {
-  value       = aws_instance.ec2.ami
+  value       = aws_instance.ec2[*].ami
 }

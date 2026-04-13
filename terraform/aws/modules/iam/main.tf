@@ -15,19 +15,24 @@ resource "aws_iam_role" "ssm" {
     name = "${var.project_name}-${var.env}-ssm-role"
     assume_role_policy = data.aws_iam_policy_document.assumerole_ec2.json
 
-    tags {
+    tags = {
         Name = "${var.project_name}-${var.env}-ssm-role"
     }
 }
 
 # ポリシー紐付け
 resource "aws_iam_role_policy_attachment" "ssm_managed_role" {
-    role = aws_iam_role.ssm
+    role = aws_iam_role.ssm.name
     policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # インスタンスプロファイル作成
 resource "aws_iam_instance_profile" "profile" {
     name = "${var.project_name}-${var.env}-profile"
-    role = aws_iam_role.ssm
+    role = aws_iam_role.ssm.name
+}
+
+# アウトプットを実施
+output "iam_instance_profile" {
+    value = aws_iam_instance_profile.profile.name
 }
