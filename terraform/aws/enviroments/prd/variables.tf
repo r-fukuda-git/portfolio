@@ -41,3 +41,7 @@ variable private_subnet_1c {
 variable  route_cidr_block {
   type = string
 }
+
+variable "key_path" {
+  type = string
+}

@@ -1,8 +1,7 @@
 resource "aws_eip" "ec2" {
-  instance_id = module.ec2.instance_id
   domain = "vpc"
-  tags {
-    Name = {var.project_name}-${var.env}-eip
+  tags = {
+    Name = "${var.project_name}-${var.env}-eip"
   }
 }
 

@@ -10,13 +10,13 @@ resource "aws_vpc" "vpc" {
   }
 }
 
-output vpc_id {
+output "vpc_id" {
   value = aws_vpc.vpc.id
 }
 
 # サブネット設定
 resource "aws_subnet" "public_subnet_1a" {
-    vpc_id = module.networking.vpc_id
+    vpc_id = aws_vpc.vpc.id
     cidr_block = var.public_subnet_1a
     availability_zone = "ap-northeast-1a"
 
@@ -27,7 +27,7 @@ resource "aws_subnet" "public_subnet_1a" {
 }
 
 resource "aws_subnet" "public_subnet_1c" {
-    vpc_id = module.networking.vpc_id
+    vpc_id = aws_vpc.vpc.id
     cidr_block = var.public_subnet_1c
     availability_zone = "ap-northeast-1c"
 
@@ -38,7 +38,7 @@ resource "aws_subnet" "public_subnet_1c" {
 }
 
 resource "aws_subnet" "private_subnet_1a" {
-    vpc_id = module.networking.vpc_id
+    vpc_id = aws_vpc.vpc.id
     cidr_block = var.private_subnet_1a
     availability_zone = "ap-northeast-1a"
 
@@ -49,7 +49,7 @@ resource "aws_subnet" "private_subnet_1a" {
 }
 
 resource "aws_subnet" "private_subnet_1c" {
-    vpc_id = module.networking.vpc_id
+    vpc_id = aws_vpc.vpc.id
     cidr_block = var.private_subnet_1c
     availability_zone = "ap-northeast-1c"
 
@@ -59,17 +59,25 @@ resource "aws_subnet" "private_subnet_1c" {
     }
 }
 
-output subnet_public_id {
-  value = module.networking.public_subnet_1[*].id
+output subnet_public_id_1a {
+  value = aws_subnet.public_subnet_1a.id
 }
 
-output subnet_private_id {
-  value = module.networking.private_subnet_1[*].id
+output subnet_public_id_1c {
+  value = aws_subnet.public_subnet_1c.id
+}
+
+output subnet_private_id_1a {
+  value = aws_subnet.private_subnet_1a.id
+}
+
+output subnet_private_id_1c {
+  value = aws_subnet.private_subnet_1c.id
 }
 
 # IGWの設定
 resource "aws_internet_gateway" "igw" {
-  vpc_id = module.networking.vpc_id
+  vpc_id = aws_vpc.vpc.id
   tags = {
     Name = "${var.project_name}-${var.env}-igw"
   }
@@ -77,32 +85,42 @@ resource "aws_internet_gateway" "igw" {
 
 # ルートテーブルの設定
 resource "aws_route_table" "public_route" {
-  vpc_id = module.networking.vpc_id
+  vpc_id = aws_vpc.vpc.id
   route {
     cidr_block = var.route_cidr_block
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags {
+  tags = {
     Name = "${var.project_name}-${var.env}-public-rt"
   }
 }
 
 resource "aws_route_table" "private_route" {
-  vpc_id = module.networking.vpc_id
+  vpc_id = aws_vpc.vpc.id
 
-  tags {
+  tags = {
     Name = "${var.project_name}-${var.env}-private-rt"
   }
 }
 
 # ルートテーブルとサブネットの関連付け設定
-resource "aws_route_table_association" "public" {
-  subnet_id = aws_subnet.public_subnet_1[*].id
+resource "aws_route_table_association" "public-1a" {
+  subnet_id = aws_subnet.public_subnet_1a.id
   route_table_id =  aws_route_table.public_route.id
 }
 
-resource "aws_route_table_association" "private" {
-  subnet_id = aws_subnet.private_subnet_1[*].id
+resource "aws_route_table_association" "public-1c" {
+  subnet_id = aws_subnet.public_subnet_1c.id
+  route_table_id =  aws_route_table.public_route.id
+}
+
+resource "aws_route_table_association" "private-1a" {
+  subnet_id = aws_subnet.private_subnet_1a.id
+  route_table_id = aws_route_table.private_route.id
+}
+
+resource "aws_route_table_association" "private-1c" {
+  subnet_id = aws_subnet.private_subnet_1c.id
   route_table_id = aws_route_table.private_route.id
 }
