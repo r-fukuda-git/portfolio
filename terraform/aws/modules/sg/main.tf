@@ -38,6 +38,16 @@ resource "aws_security_group_rule" "ingress_allow_ssh" {
   description = "Allow SSH"
 }
 
+resource "aws_security_group_rule" "egress_all" {
+  type = "egress"
+  from_port = 0
+  to_port = 0
+  protocol = "-1"
+  cidr_blocks = [var.source_cidr_blocks]
+  security_group_id = aws_security_group.web_public.id
+  description = "All"
+}
+
 output public_sg_id {
   value       = aws_security_group.web_public.id
 }
