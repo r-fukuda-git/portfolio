@@ -11,5 +11,9 @@ variable vpc_id {
 }
 
 variable source_cidr_blocks {
-  type = string
+  type = list(string)
+}
+
+variable "target_cidr_blocks" {
+  type = list(string)
 }

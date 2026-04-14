@@ -29,3 +29,7 @@ variable iam_instance_profile {
 variable "key_path" {
   type = string
 }
+
+variable "disable_api_termination" {
+  type = bool
+}

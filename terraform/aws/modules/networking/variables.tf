@@ -11,7 +11,7 @@ variable cidr_block_vpc {
 }
 
 variable source_cidr_blocks {
-  type = string
+  type = list(string)
 }
 
 variable public_subnet_1a {

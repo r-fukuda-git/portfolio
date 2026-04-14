@@ -43,7 +43,7 @@ resource "aws_instance" "ec2" {
     }
   }
 
-  disable_api_termination = true
+  disable_api_termination = var.disable_api_termination
   iam_instance_profile = var.iam_instance_profile
   monitoring = true
 

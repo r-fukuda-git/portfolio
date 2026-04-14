@@ -12,11 +12,11 @@ data "aws_iam_policy_document" "assumerole_ec2" {
 
 # ロール作成
 resource "aws_iam_role" "ssm" {
-    name = "${var.project_name}-${var.env}-ssm-role"
+    name = "${var.project_name}-${var.env}-ec2-role"
     assume_role_policy = data.aws_iam_policy_document.assumerole_ec2.json
 
     tags = {
-        Name = "${var.project_name}-${var.env}-ssm-role"
+        Name = "${var.project_name}-${var.env}-ec2-role"
     }
 }
 
@@ -24,6 +24,11 @@ resource "aws_iam_role" "ssm" {
 resource "aws_iam_role_policy_attachment" "ssm_managed_role" {
     role = aws_iam_role.ssm.name
     policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "rds_access" {
+  role = aws_iam_role.ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonRDSFullAccess"
 }
 
 # インスタンスプロファイル作成
