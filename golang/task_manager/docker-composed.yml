@@ -1,0 +1,26 @@
+versions: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080" # Macの8080ポートをコンテナの8080に繋ぐ
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: postgres
+    depends_on:
+      db:
+        conditon: service_started # dbサービスが起動してからappを起動する
+
+  db:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./init://docker-entrypoint-initdb.d
+    restart: always
