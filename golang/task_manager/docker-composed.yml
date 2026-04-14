@@ -1,4 +1,4 @@
-versions: '3.8'
+version: '3.8'
 
 services:
   app:
@@ -13,14 +13,14 @@ services:
       DB_NAME: postgres
     depends_on:
       db:
-        conditon: service_started # dbサービスが起動してからappを起動する
+        condition: service_started # dbサービスが起動してからappを起動する
 
   db:
     image: postgres:latest
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./init://docker-entrypoint-initdb.d
+      - ./init:/docker-entrypoint-initdb.d
     restart: always
