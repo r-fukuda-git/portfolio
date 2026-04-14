@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Go タスク可視化ツール</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .stats { background: #f0f0f0; padding: 1em; border-radius: 5px; margin-bottom: 1em; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        .completed { color: green; font-weight: bold; }
+        .pending { color: red; }
+    </style>
+</head>
+<body>
+    <h1>タスク一覧（可視化）</h1>
+
+    <div class="stats">
+        <strong>統計:</strong> 合計 {{.TotalCount}} 件 / 
+        <span class="completed">完了 {{.CompletedCount}} 件</span> / 
+        <span class="pending">未完了 {{.PendingCount}} 件</span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>タイトル</th>
+                <th>ステータス</th>
+                <th>所要時間</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Tasks}}
+            <tr>
+                <td>{{.ID}}</td>
+                <td>{{.Title}}</td>
+                <td>
+                    {{if .Completed}}
+                    <span class="completed">✓ 完了</span>
+                    {{else}}
+                    <span class="pending">... 未完了</span>
+                    {{endif}}
+                </td>
+                <td>{{.Duration}} 秒</td>
+            </tr>
+            {{range}}
+        </tbody>
+    </table>
+</body>
+</html>

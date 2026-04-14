@@ -46,9 +46,9 @@ func saveToCloud(t Task, ch chan<- string) {
 	ch <- fmt.Sprintf("Task %d %s (所要時間: %d秒)のタスクをクラウドに同期しました。", t.ID, t.Title, t.Duration)
 }
 
-func mainDb() {
-	err := godotenv.Load()
-	if err != nil {
+func main() {
+	enverr := godotenv.Load()
+	if enverr != nil {
 		log.Fatal(".envの読み込みに失敗しました")
 	}
 
@@ -60,9 +60,19 @@ func mainDb() {
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, pass, dbname)
 
-	db, err := sql.Open("postgres", connStr)
+	var db *sql.DB
+	var err error
+	for i := 0; i < 10; i++ {
+		db, err = sql.Open("postgres", connStr)
+		if err == nil && db.Ping() == nil {
+			break
+		}
+		fmt.Println("DB接続中")
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		fmt.Printf("接続失敗: %v\n", err)
+		log.Fatal("DB接続失敗", err)
 	}
 	defer db.Close()
 
