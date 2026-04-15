@@ -6,6 +6,38 @@
     <style>
         body { font-family: sans-serif; margin: 2em; }
         .stats { background: #f0f0f0; padding: 1em; border-radius: 5px; margin-bottom: 1em; }
+        
+        /* フォーム用のデザインを追加 */
+        .add-form {
+            background: #e9f5ff;
+            padding: 1.5em;
+            border-radius: 5px;
+            margin-bottom: 2em;
+            border: 1px solid #b3d7ff;
+        }
+        .form-group {
+            margin-bottom: 1em;
+        }
+        .form-group label {
+            display: inline-block;
+            width: 100px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+
         table { width: 100%; border-collapse: collapse; margin-top: 1em; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #4CAF50; color: white; }
@@ -22,6 +54,30 @@
         <span class="pending">未完了 {{.PendingCount}} 件</span>
     </div>
 
+    <div class="add-form">
+        <h3>新しいタスクの追加</h3>
+        <form action="/add" method="POST">
+            <div class="form-group">
+                <label for="title">タイトル:</label>
+                <input type="text" id="title" name="title" required placeholder="例: 書類作成">
+            </div>
+            
+            <div class="form-group">
+                <label for="duration">所要時間:</label>
+                <input type="number" id="duration" name="duration" required min="1" placeholder="秒数">
+            </div>
+
+            <div class="form-group">
+                <label for="completed">ステータス:</label>
+                <select id="completed" name="completed">
+                    <option value="false">未完了</option>
+                    <option value="true">完了</option>
+                </select>
+            </div>
+            
+            <button type="submit">タスクを追加</button>
+        </form>
+    </div>
     <table>
         <thead>
             <tr>
@@ -38,14 +94,14 @@
                 <td>{{.Title}}</td>
                 <td>
                     {{if .Completed}}
-                    <span class="completed">✓ 完了</span>
+                    <span class="completed">✅ 完了</span>
                     {{else}}
-                    <span class="pending">... 未完了</span>
-                    {{endif}}
+                    <span class="pending">❌ 未完了</span>
+                    {{end}}
                 </td>
                 <td>{{.Duration}} 秒</td>
             </tr>
-            {{range}}
+            {{end}}
         </tbody>
     </table>
 </body>
