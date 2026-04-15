@@ -47,10 +47,7 @@ func saveToCloud(t Task, ch chan<- string) {
 }
 
 func main() {
-	enverr := godotenv.Load()
-	if enverr != nil {
-		log.Fatal(".envの読み込みに失敗しました")
-	}
+	_ = godotenv.Load()
 
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
