@@ -4,16 +4,17 @@ services:
     env_file:
       - .env
     ports:
-      - "8080:8080" # Macの8080ポートをコンテナの8080に繋ぐ
+      - "8081:8080" # Macの8080ポートをコンテナの8080に繋ぐ
     depends_on:
       db:
-        condition: service_started # dbサービスが起動してからappを起動する
+        condition: service_started # DBが健康になってから起動
 
   db:
     image: postgres:latest
     ports:
-      - "5433:5432"
+      - "5432:5432"
     environment:
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - ./init:/docker-entrypoint-initdb.d
