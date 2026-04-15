@@ -1,16 +1,10 @@
-version: '3.8'
-
 services:
   app:
     build: .
+    env_file:
+      - .env
     ports:
       - "8080:8080" # Macの8080ポートをコンテナの8080に繋ぐ
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: postgres
     depends_on:
       db:
         condition: service_started # dbサービスが起動してからappを起動する
