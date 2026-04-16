@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -14,7 +15,63 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
+
+// サインアップ処理
+func (l *TaskList) signupUser(username string, password string) error {
+	// 2回に分けるよりOR条件で繋いだ方がいい
+	if username == "" || password == "" {
+		return errors.New("空")
+	}
+
+	// パスワード
+	// 平文のパスワードをハッシュに変更する
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// 入力された情報をDBに保存
+	query := `INSERT INTO users (username, password_hash) VALUES ($1, $2)`
+
+	_, err = l.db.Exec(query, username, string(hashedPassword))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ログイン処理
+func (u *User) loginUser(username string, password string) error {
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+	}
+
+	// err := bcrypt.CompareHashAndPassword([]byte(savedHash), []byte(loginPassword))
+	// l.db.QueryRow("SELECT password_hash FROM users WHERE username = $1", username).Scan(&storedHash)
+}
+
+func (l *TaskList) authMiddleware(next http.HandleFunc) http.HandleFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		// リクエストからsession_idを探す
+		cookie, err := r.Cookie("session_id")
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return //return しないと、勝手に中に入られる
+		}
+
+		// ログインしていれば、クッキーの中身を取り出す
+		userID := cookie.Value
+		log.Println("アクセスしたユーザーID:", userID)
+
+		// 会員証の確認が取れたために、本来の処理へ
+		next(w, r)
+	}
+}
 
 // タスク追加処理
 func (l *TaskList) AddTask(title string, completed bool, duration int, created_at time.Time) error {
@@ -310,6 +367,26 @@ func (l *TaskList) bulkDelHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// API用のハンドラー
+func (l *TaskList) apiTasksHandler(w http.ResponseWriter, r *http.Request) {
+	// 全件取得
+	tasks, err := l.GetAllTasks("", "", 100, 0)
+	if err != nil {
+		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
+		return
+	}
+
+	// ブラウザにJSONデータを送る内容を明示的に記載
+	w.Header().Set("Content-Type", "application/json")
+
+	// tasksをJSONに変換し、wに書き込み
+	err = json.NewEncoder(w).Encode(tasks)
+	if err != nil {
+		http.Error(w, "JSON変換エラー", http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	_ = godotenv.Load()
 
@@ -348,6 +425,7 @@ func main() {
 	http.HandleFunc("/del", myTasks.delHandler)
 	http.HandleFunc("/update", myTasks.updateHandler)
 	http.HandleFunc("/bulk-del", myTasks.bulkDelHandler)
+	http.HandleFunc("/api/tasks", myTasks.apiTasksHandler)
 
 	fmt.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
