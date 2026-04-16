@@ -6,6 +6,14 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL -- ハッシュ化したものを使用する
+);
+
+ALTER TABLE tasks ADD COLUMN user_id INTEGER REFERENCES users(id);
+
 INSERT INTO tasks (title, completed, duration)
 SELECT 
     (ARRAY['【仕事】', '【個人】', '【急ぎ】', '【検討中】'])[floor(random() * 4 + 1)] || 
@@ -17,5 +25,5 @@ SELECT
         WHEN i % 10 = 0 THEN (random() * 100 + 50)::int
         ELSE (random() * 10 + 1)::int
     END
-FROM generate_series(1, 10) AS i
+FROM generate_series(1, 100) AS i
 ON CONFLICT DO NOTHING;

@@ -34,3 +34,8 @@ type TaskList struct {
 	tasks []Task
 	db    *sql.DB
 }
+
+type User struct {
+	username string
+	password string
+}
