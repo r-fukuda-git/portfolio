@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // ToStringのインターフェースを作成
@@ -12,10 +13,11 @@ type Stringer interface {
 
 // Taskの構造体を作成
 type Task struct {
-	ID        int
-	Title     string
-	Completed bool
-	Duration  int
+	ID         int
+	Title      string
+	Completed  bool
+	Duration   int
+	Created_at time.Time
 }
 
 // Taskをtとして読み込み、statusの確認を関数で実施

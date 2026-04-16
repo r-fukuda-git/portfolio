@@ -2,107 +2,175 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Go タスク可視化ツール</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow | Go タスク管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; margin: 2em; }
-        .stats { background: #f0f0f0; padding: 1em; border-radius: 5px; margin-bottom: 1em; }
-        
-        /* フォーム用のデザインを追加 */
-        .add-form {
-            background: #e9f5ff;
-            padding: 1.5em;
-            border-radius: 5px;
-            margin-bottom: 2em;
-            border: 1px solid #b3d7ff;
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
         }
-        .form-group {
-            margin-bottom: 1em;
-        }
-        .form-group label {
-            display: inline-block;
-            width: 100px;
-            font-weight: bold;
-        }
-        .form-group input, .form-group select {
-            padding: 5px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-        }
-        button {
-            padding: 8px 15px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        button:hover { background-color: #0056b3; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #4CAF50; color: white; }
-        .completed { color: green; font-weight: bold; }
-        .pending { color: red; }
     </style>
 </head>
-<body>
-    <h1>タスク一覧（可視化）</h1>
+<body class="py-10 px-4 sm:px-6 lg:px-8">
 
-    <div class="stats">
-        <strong>統計:</strong> 合計 {{.TotalCount}} 件 / 
-        <span class="completed">完了 {{.CompletedCount}} 件</span> / 
-        <span class="pending">未完了 {{.PendingCount}} 件</span>
-    </div>
-
-    <div class="add-form">
-        <h3>新しいタスクの追加</h3>
-        <form action="/add" method="POST">
-            <div class="form-group">
-                <label for="title">タイトル:</label>
-                <input type="text" id="title" name="title" required placeholder="例: 書類作成">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">📋 TaskFlow</h1>
+                <p class="text-gray-500">Go Backend Task Visualizer</p>
             </div>
             
-            <div class="form-group">
-                <label for="duration">所要時間:</label>
-                <input type="number" id="duration" name="duration" required min="1" placeholder="秒数">
+            <div class="flex gap-3">
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <span class="block text-xs text-gray-400 uppercase font-semibold">Total</span>
+                    <span class="text-xl font-bold text-gray-800">{{.TotalCount}}</span>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-center border-b-4 border-b-green-500">
+                    <span class="block text-xs text-gray-400 uppercase font-semibold text-green-600">Done</span>
+                    <span class="text-xl font-bold text-green-600">{{.CompletedCount}}</span>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-center border-b-4 border-b-red-500">
+                    <span class="block text-xs text-gray-400 uppercase font-semibold text-red-600">Pending</span>
+                    <span class="text-xl font-bold text-red-600">{{.PendingCount}}</span>
+                </div>
             </div>
+        </header>
 
-            <div class="form-group">
-                <label for="completed">ステータス:</label>
-                <select id="completed" name="completed">
-                    <option value="false">未完了</option>
-                    <option value="true">完了</option>
-                </select>
-            </div>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
-            <button type="submit">タスクを追加</button>
-        </form>
+            <aside class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-2xl shadow-sm sticky top-8 border border-gray-100">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center text-gray-700">
+                        <span class="bg-blue-100 text-blue-600 p-2 rounded-lg mr-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                        新規タスク追加
+                    </h3>
+                    <form action="/add" method="POST" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">タイトル</label>
+                            <input type="text" name="title" required placeholder="例: 書類作成" 
+                                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">所要時間 (秒)</label>
+                            <input type="number" name="duration" required min="1" placeholder="60"
+                                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
+                            <select name="completed" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition appearance-none bg-white">
+                                <option value="false">❌ 未完了</option>
+                                <option value="true">✅ 完了</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-100">
+                            追加する
+                        </button>
+                    </form>
+                </div>
+            </aside>
+
+            <main class="lg:col-span-3">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">内容 / 時間</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">ステータス</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">作成日時</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            {{range .Tasks}}
+                            <tr class="hover:bg-blue-50/20 transition">
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold text-gray-800">{{.Title}}</div>
+                                    <div class="text-sm text-gray-400 flex items-center mt-1">
+                                        <span class="mr-3 font-mono text-xs">ID: {{.ID}}</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        {{.Duration}} 秒
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    {{if .Completed}}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                        完了
+                                    </span>
+                                    {{else}}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                        未完了
+                                    </span>
+                                    {{end}}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center text-sm text-gray-500 font-mono">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        {{.Created_at.Format "2006/01/02 15:04"}}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex flex-col gap-2 items-end">
+                                        <details class="text-left">
+                                            <summary class="text-xs text-blue-500 cursor-pointer hover:text-blue-700 font-semibold list-none bg-blue-50 px-2 py-1 rounded">編集</summary>
+                                            <div class="absolute right-0 mt-2 p-4 bg-white rounded-xl shadow-xl border border-gray-100 z-10 w-64">
+                                                <form action="/update" method="POST" class="space-y-3">
+                                                    <input type="hidden" name="id" value="{{.ID}}">
+                                                    <div>
+                                                        <label class="text-[10px] font-bold text-gray-400 uppercase">タイトル</label>
+                                                        <input type="text" name="title" value="{{.Title}}" required class="w-full p-1.5 text-sm border rounded">
+                                                    </div>
+                                                    <div class="flex gap-2">
+                                                        <div class="w-1/2">
+                                                            <label class="text-[10px] font-bold text-gray-400 uppercase">時間</label>
+                                                            <input type="number" name="duration" value="{{.Duration}}" required class="w-full p-1.5 text-sm border rounded">
+                                                        </div>
+                                                        <div class="w-1/2">
+                                                            <label class="text-[10px] font-bold text-gray-400 uppercase">状態</label>
+                                                            <select name="completed" class="w-full p-1.5 text-sm border rounded bg-white">
+                                                                <option value="false" {{if not .Completed}}selected{{end}}>未完了</option>
+                                                                <option value="true" {{if .Completed}}selected{{end}}>完了</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <button type="submit" class="w-full bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold py-2 rounded transition">更新を反映</button>
+                                                </form>
+                                            </div>
+                                        </details>
+
+                                        <form action="/del" method="POST" onsubmit="return confirm('削除してもよろしいですか？')">
+                                            <input type="hidden" name="id" value="{{.ID}}">
+                                            <button type="submit" class="text-gray-300 hover:text-red-500 transition">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{else}}
+                            <tr>
+                                <td colspan="4" class="px-6 py-12 text-center text-gray-400 italic">
+                                    表示するタスクがありません。
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
     </div>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>タイトル</th>
-                <th>ステータス</th>
-                <th>所要時間</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .Tasks}}
-            <tr>
-                <td>{{.ID}}</td>
-                <td>{{.Title}}</td>
-                <td>
-                    {{if .Completed}}
-                    <span class="completed">✅ 完了</span>
-                    {{else}}
-                    <span class="pending">❌ 未完了</span>
-                    {{end}}
-                </td>
-                <td>{{.Duration}} 秒</td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
+
 </body>
 </html>

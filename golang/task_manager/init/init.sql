@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
     completed BOOLEAN NOT NULL DEFAULT false,
-    duration INTEGER NOT NULL DEFAULT 1
+    duration INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO tasks (title, completed, duration)
