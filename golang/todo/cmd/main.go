@@ -53,8 +53,26 @@ func (l *TaskList) UpdateTask(id int, title string, completed bool, duraion int)
 }
 
 // DBから情報を取得
-func (l *TaskList) GetAllTasks() ([]Task, error) {
-	rows, err := l.db.Query("SELECT id, title, completed, duration, created_at FROM tasks ORDER by id")
+func (l *TaskList) GetAllTasks(keyword string, status string, limit int, offset int) ([]Task, error) {
+	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE 1=1`
+	var args []any
+
+	if keyword != "" {
+		args = append(args, "%"+keyword+"%")
+		query += fmt.Sprintf(" AND title LIKE $%d", len(args))
+	}
+
+	if status == "true" || status == "false" {
+		args = append(args, status)
+		query += fmt.Sprintf(" AND completed = %d", len(args))
+	}
+
+	query += " ORDER BY id"
+
+	args = append(args, limit, offset)
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args))
+
+	rows, err := l.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +91,24 @@ func (l *TaskList) GetAllTasks() ([]Task, error) {
 
 // GET処理
 func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
-	tasks, err := l.GetAllTasks()
+	// ページネーション設定
+	pageStr := r.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		p, err := strconv.Atoi(pageStr)
+		if err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	limit := 10
+	offset := (page - 1) * limit
+
+	// 検索・フィルター設定
+	keyword := r.URL.Query().Get("q")
+	statusStr := r.URL.Query().Get("status")
+
+	tasks, err := l.GetAllTasks(keyword, statusStr, limit, offset)
 	if err != nil {
 		log.Println("DBエラー", err)
 		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
@@ -107,12 +142,18 @@ func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
 		PendingCount   int
 		Tasks          []Task
 		Created_at     time.Time
+		CurrentPage    int
+		PrevPage       int
+		NextPage       int
 	}{
 		TotalCount:     len(tasks),
 		CompletedCount: completedCount,
 		PendingCount:   pendingCount,
 		Tasks:          tasks,
 		Created_at:     created_at_time,
+		CurrentPage:    page,
+		PrevPage:       page - 1,
+		NextPage:       page + 1,
 	}
 
 	tmpl, err := template.ParseFiles("templates/index.html")
@@ -308,16 +349,6 @@ func main() {
 	http.HandleFunc("/update", myTasks.updateHandler)
 	http.HandleFunc("/bulk-del", myTasks.bulkDelHandler)
 
-	latestTask, err := myTasks.GetAllTasks()
-	if err != nil {
-		fmt.Printf("タスク取得に失敗しました.%v", err)
-	}
-	myTasks.tasks = latestTask
-
-	stats := map[string]int{
-		"total": len(myTasks.tasks),
-	}
-	fmt.Printf("\n統計: 合計 %d 件 \n", stats["total"])
 	fmt.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
