@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -88,12 +89,20 @@ func (l *TaskList) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return //return しないと、勝手に中に入られる
 		}
 
-		// ログインしていれば、クッキーの中身を取り出す
-		userID := cookie.Value
-		log.Println("アクセスしたユーザーID:", userID)
+		// ログインしていれば、ユーザーを指定して、クッキーの中身を取り出す
+		username := cookie.Value
+		var user_id int
+		err = l.db.QueryRow(`SELECT id FROM users WHERE username = $1`, username).Scan(&user_id)
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 
-		// 会員証の確認が取れたために、本来の処理へ
-		next(w, r)
+		// contextにuser_idという名前でuser_idを入れる
+		ctx := context.WithValue(r.Context(), "user_id", user_id)
+
+		// 会員証の確認が取れたために、新しいリクエスト(r.WithContext)と共に本来の処理へ
+		next(w, r.WithContext(ctx))
 	}
 }
 
@@ -141,6 +150,7 @@ func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
 			Value:    username,
 			Path:     "/",
 			HttpOnly: true,
+			MaxAge:   120, //有効期限を設定
 		}
 		http.SetCookie(w, cookie)
 
@@ -149,29 +159,29 @@ func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // タスク追加処理
-func (l *TaskList) AddTask(title string, completed bool, duration int, created_at time.Time) error {
+func (l *TaskList) AddTask(user_id int, title string, completed bool, duration int, created_at time.Time) error {
 	if title == "" {
 		return errors.New("空")
 	}
 
-	query := `INSERT INTO tasks (title, completed, duration, created_at) VALUES ($1, $2, $3, $4)`
-	_, err := l.db.Exec(query, title, completed, duration, created_at)
+	query := `INSERT INTO tasks (user_id, title, completed, duration, created_at) VALUES ($1, $2, $3, $4, $5)`
+	_, err := l.db.Exec(query, user_id, title, completed, duration, created_at)
 	return err
 }
 
 // タスク削除処理
-func (l *TaskList) DelTask(ID int) error {
-	if ID <= 0 {
+func (l *TaskList) DelTask(user_id int, taskID int) error {
+	if user_id <= 0 || taskID <= 0 {
 		return errors.New("不正なID")
 	}
 
-	query := `DELETE FROM tasks WHERE id = $1`
-	_, err := l.db.Exec(query, ID)
+	query := `DELETE FROM tasks WHERE id = $1 AND user_id = $2`
+	_, err := l.db.Exec(query, taskID, user_id)
 	return err
 }
 
 // タスク更新処理
-func (l *TaskList) UpdateTask(id int, title string, completed bool, duraion int) error {
+func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duraion int) error {
 	if id <= 0 {
 		return errors.New("不正なID")
 	}
@@ -179,15 +189,16 @@ func (l *TaskList) UpdateTask(id int, title string, completed bool, duraion int)
 		return errors.New("タイトル空です")
 	}
 
-	query := `UPDATE tasks SET title = $1, completed = $2, duration = $3 WHERE id = $4`
-	_, err := l.db.Exec(query, title, completed, duraion, id)
+	query := `UPDATE tasks SET title = $1, completed = $2, duration = $3 WHERE id = $4 AND user_id = $5`
+	_, err := l.db.Exec(query, title, completed, duraion, id, user_id)
 	return err
 }
 
 // DBから情報を取得
-func (l *TaskList) GetAllTasks(keyword string, status string, limit int, offset int) ([]Task, error) {
-	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE 1=1`
+func (l *TaskList) GetAllTasks(user_id int, keyword string, status string, limit int, offset int) ([]Task, error) {
+	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE user_id = $1`
 	var args []any
+	args = append(args, user_id)
 
 	if keyword != "" {
 		args = append(args, "%"+keyword+"%")
@@ -196,7 +207,7 @@ func (l *TaskList) GetAllTasks(keyword string, status string, limit int, offset 
 
 	if status == "true" || status == "false" {
 		args = append(args, status)
-		query += fmt.Sprintf(" AND completed = %d", len(args))
+		query += fmt.Sprintf(" AND completed = $%d", len(args))
 	}
 
 	query += " ORDER BY id"
@@ -233,6 +244,8 @@ func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	user_id := r.Context().Value("user_id").(int)
+
 	limit := 10
 	offset := (page - 1) * limit
 
@@ -240,7 +253,7 @@ func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
 	keyword := r.URL.Query().Get("q")
 	statusStr := r.URL.Query().Get("status")
 
-	tasks, err := l.GetAllTasks(keyword, statusStr, limit, offset)
+	tasks, err := l.GetAllTasks(user_id, keyword, statusStr, limit, offset)
 	if err != nil {
 		log.Println("DBエラー", err)
 		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
@@ -248,13 +261,13 @@ func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var totalCount int
-	err = l.db.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&totalCount)
+	err = l.db.QueryRow("SELECT COUNT(*) FROM tasks WHERE user_id = $1", user_id).Scan(&totalCount)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	var completedCount int
-	err = l.db.QueryRow("SELECT COUNT(*) FROM tasks WHERE completed = true").Scan(&completedCount)
+	err = l.db.QueryRow("SELECT COUNT(*) FROM tasks WHERE completed = true AND user_id = $1", user_id).Scan(&completedCount)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -328,11 +341,14 @@ func (l *TaskList) addHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// contextからuser_idを取り出す
+		user_id := r.Context().Value("user_id").(int)
+
 		// 作成日時を定義
 		now := time.Now()
 
 		// DBへ保存
-		err = l.AddTask(title, completed, duration, now)
+		err = l.AddTask(user_id, title, completed, duration, now)
 		if err != nil {
 			http.Error(w, "保存失敗", http.StatusInternalServerError)
 			return
@@ -346,6 +362,8 @@ func (l *TaskList) addHandler(w http.ResponseWriter, r *http.Request) {
 func (l *TaskList) delHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 
+		user_id := r.Context().Value("user_id").(int)
+
 		// string型からint型へ変更
 		intStr := r.FormValue("id")
 		id, err := strconv.Atoi(intStr)
@@ -355,7 +373,7 @@ func (l *TaskList) delHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = l.DelTask(id)
+		err = l.DelTask(user_id, id)
 		if err != nil {
 			http.Error(w, "削除失敗", http.StatusInternalServerError)
 			return
@@ -368,6 +386,7 @@ func (l *TaskList) delHandler(w http.ResponseWriter, r *http.Request) {
 func (l *TaskList) updateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 
+		user_id := r.Context().Value("user_id").(int)
 		title := r.FormValue("title")
 
 		compStr := r.FormValue("completed")
@@ -394,7 +413,7 @@ func (l *TaskList) updateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = l.UpdateTask(id, title, completed, duration)
+		err = l.UpdateTask(user_id, id, title, completed, duration)
 		if err != nil {
 			http.Error(w, "更新失敗", http.StatusInternalServerError)
 			return
@@ -431,7 +450,7 @@ func (l *TaskList) bulkDelHandler(w http.ResponseWriter, r *http.Request) {
 
 			placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
 		}
-		query := fmt.Sprintf("DELETE FROM tasks WHERE id IN (%s)", strings.Join(placeholders, ","))
+		query := fmt.Sprintf("DELETE FROM tasks WHERE id IN (%s) AND user_id = $1", strings.Join(placeholders, ","))
 		_, err := l.db.Exec(query, args...)
 		if err != nil {
 			log.Println(err)
@@ -445,7 +464,8 @@ func (l *TaskList) bulkDelHandler(w http.ResponseWriter, r *http.Request) {
 // API用のハンドラー
 func (l *TaskList) apiTasksHandler(w http.ResponseWriter, r *http.Request) {
 	// 全件取得
-	tasks, err := l.GetAllTasks("", "", 100, 0)
+	user_id := r.Context().Value("user_id").(int)
+	tasks, err := l.GetAllTasks(user_id, "", "", 100, 0)
 	if err != nil {
 		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
 		return
