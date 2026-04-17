@@ -18,7 +18,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// サインアップ処理
+// サインアップメソッド
 func (l *TaskList) signupUser(username string, password string) error {
 	// 2回に分けるよりOR条件で繋いだ方がいい
 	if username == "" || password == "" {
@@ -43,8 +43,42 @@ func (l *TaskList) signupUser(username string, password string) error {
 	return nil
 }
 
+// サインアップハンドラー
+func (l *TaskList) signupHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		tmpl, err := template.ParseFiles("templates/signup.html")
+		if err != nil {
+			log.Printf("読み込みエラー", err)
+			http.Error(w, "読み込みエラー", http.StatusInternalServerError)
+			return
+		}
+
+		err = tmpl.Execute(w, nil)
+		if err != nil {
+			log.Printf("表示エラー", err)
+			http.Error(w, "表示エラー", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		// 既に作ったDB処理を呼び出す
+		err := l.signupUser(username, password)
+		log.Printf("ログイン成功:%v", username)
+		if err != nil {
+			http.Error(w, "登録に失敗しました", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
 // ログイン処理
-func (l *TaskList) authMiddleware(next http.HandleFunc) http.HandleFunc {
+func (l *TaskList) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// リクエストからsession_idを探す
@@ -63,8 +97,56 @@ func (l *TaskList) authMiddleware(next http.HandleFunc) http.HandleFunc {
 	}
 }
 
-func (l *TaskList)
+// ログイン処理
+func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		tmpl, err := template.ParseFiles("templates/login.html")
+		if err != nil {
+			log.Printf("ログインテンプレート読み込みエラー:%v", err)
+			http.Error(w, "システムエラー", http.StatusInternalServerError)
+			return
+		}
 
+		err = tmpl.Execute(w, nil)
+		if err != nil {
+			log.Printf("表示エラー:%v", err)
+			http.Error(w, "表示えらー", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		// DBからハッシュ化されたパスワードを取得
+		var storeHash string
+		err := l.db.QueryRow(`SELECT password_hash FROM users WHERE username = $1`, username).Scan(&storeHash)
+		if err != nil {
+			http.Error(w, "ユーザー名かパスワードが異なります。", http.StatusUnauthorized)
+			return
+		}
+
+		// パスワード照合
+		err = bcrypt.CompareHashAndPassword([]byte(storeHash), []byte(password))
+		if err != nil {
+			http.Error(w, "ユーザー名かパスワードが違います", http.StatusUnauthorized)
+			return
+		}
+
+		// クッキーの発行
+		cookie := &http.Cookie{
+			Name:     "session_id",
+			Value:    username,
+			Path:     "/",
+			HttpOnly: true,
+		}
+		http.SetCookie(w, cookie)
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
 
 // タスク追加処理
 func (l *TaskList) AddTask(title string, completed bool, duration int, created_at time.Time) error {
@@ -413,12 +495,17 @@ func main() {
 	}
 	myTasks := TaskList{db: db}
 
-	http.HandleFunc("/", myTasks.indexHandler)
-	http.HandleFunc("/add", myTasks.addHandler)
-	http.HandleFunc("/del", myTasks.delHandler)
-	http.HandleFunc("/update", myTasks.updateHandler)
-	http.HandleFunc("/bulk-del", myTasks.bulkDelHandler)
-	http.HandleFunc("/api/tasks", myTasks.apiTasksHandler)
+	// 誰でもみられるページ
+	http.HandleFunc("/login", myTasks.loginHandler)
+	http.HandleFunc("/signup", myTasks.signupHandler)
+
+	// authMiddlewareで包むことによりcookieを持つ人しか見られない
+	http.HandleFunc("/", myTasks.authMiddleware(myTasks.indexHandler))
+	http.HandleFunc("/add", myTasks.authMiddleware(myTasks.addHandler))
+	http.HandleFunc("/del", myTasks.authMiddleware(myTasks.delHandler))
+	http.HandleFunc("/update", myTasks.authMiddleware(myTasks.updateHandler))
+	http.HandleFunc("/bulk-del", myTasks.authMiddleware(myTasks.bulkDelHandler))
+	http.HandleFunc("/api/tasks", myTasks.authMiddleware(myTasks.apiTasksHandler))
 
 	fmt.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
