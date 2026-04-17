@@ -11,7 +11,8 @@
     </style>
 </head>
 <body class="py-10 px-4">
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-6xl mx-auto">
+        
         <header class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">TaskFlow Dashboard</h1>
@@ -34,12 +35,13 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
             <aside class="lg:col-span-4 space-y-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h3 class="font-bold text-gray-800 mb-4 text-xs uppercase tracking-wider">検索フィルタ</h3>
                     <form action="/" method="GET" class="space-y-3">
                         <input type="text" name="q" placeholder="タイトルで検索..." class="w-full px-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <select name="status" class="w-full px-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select name="status" class="w-full px-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
                             <option value="all">すべて</option>
                             <option value="true">完了済み</option>
                             <option value="false">未完了</option>
@@ -54,7 +56,7 @@
                         <input type="text" name="title" required placeholder="タスク名を入力" class="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <div class="grid grid-cols-2 gap-3">
                             <input type="number" name="duration" required min="1" placeholder="秒数" class="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            <select name="completed" class="w-full px-3 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select name="completed" class="w-full px-3 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
                                 <option value="false">未完了</option>
                                 <option value="true">完了</option>
                             </select>
@@ -65,61 +67,104 @@
             </aside>
 
             <main class="lg:col-span-8">
-                <form action="/bulk-del" method="POST">
-                    <div class="mb-4 flex justify-between items-center px-2">
-                        <h3 class="font-bold text-gray-500 text-xs uppercase tracking-widest">Tasks</h3>
-                        <button type="submit" class="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition" onclick="return confirm('選択したタスクを削除しますか？')">選択削除</button>
-                    </div>
+                <div class="mb-4 flex justify-between items-center px-2">
+                    <h3 class="font-bold text-gray-500 text-xs uppercase tracking-widest">Tasks</h3>
+                    <button type="button" 
+                            onclick="if(confirm('選択したタスクを一括削除しますか？')) document.getElementById('bulk-delete-form').submit()"
+                            class="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition">
+                        選択した項目を削除
+                    </button>
+                </div>
 
-                    <div class="space-y-3">
-                        {{range .Tasks}}
-                        <div class="group bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <input type="checkbox" name="ids" value="{{.ID}}" class="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer">
-                                <div class="flex-1">
-                                    <h4 class="text-sm font-semibold {{if .Completed}}text-gray-300 line-through{{else}}text-gray-700{{end}}">{{.Title}}</h4>
-                                    <div class="flex items-center gap-3 mt-1 text-[10px] text-gray-400 font-mono">
-                                        <span>ID: {{.ID}}</span>
-                                        <span>⏳ {{.Duration}}s</span>
-                                        <span>📅 {{.Created_at.Format "2006/01/02 15:04"}}</span>
-                                    </div>
+                <form id="bulk-delete-form" action="/bulk-del" method="POST" class="hidden"></form>
+
+                <div class="space-y-3">
+                    {{range .Tasks}}
+                    <div class="group bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between relative">
+                        <div class="flex items-center gap-4 flex-1">
+                            <input type="checkbox" value="{{.ID}}" 
+                                   onchange="updateBulkForm(this)"
+                                   class="task-checkbox w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer">
+                            
+                            <div class="flex-1">
+                                <h4 class="text-sm font-semibold {{if .Completed}}text-gray-300 line-through{{else}}text-gray-700{{end}}">
+                                    {{.Title}}
+                                </h4>
+                                <div class="flex items-center gap-3 mt-1 text-[10px] text-gray-400 font-mono">
+                                    <span>ID: {{.ID}}</span>
+                                    <span>⏳ {{.Duration}}s</span>
+                                    <span>📅 {{.Created_at.Format "2006/01/02 15:04"}}</span>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <details class="relative">
-                                    <summary class="list-none cursor-pointer p-2 text-gray-400 hover:text-blue-500">Edit</summary>
-                                    <div class="absolute right-0 mt-2 p-4 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 w-64">
-                                        <form action="/update" method="POST" class="space-y-3">
-                                            <input type="hidden" name="id" value="{{.ID}}">
-                                            <input type="text" name="title" value="{{.Title}}" class="w-full p-2 text-xs bg-gray-50 rounded-lg outline-none">
-                                            <div class="flex gap-2">
-                                                <input type="number" name="duration" value="{{.Duration}}" class="w-1/2 p-2 text-xs bg-gray-50 rounded-lg">
-                                                <select name="completed" class="w-1/2 p-2 text-xs bg-gray-50 rounded-lg">
-                                                    <option value="false" {{if not .Completed}}selected{{end}}>未完了</option>
-                                                    <option value="true" {{if .Completed}}selected{{end}}>完了</option>
-                                                </select>
-                                            </div>
-                                            <button type="submit" class="w-full bg-blue-600 text-white text-[10px] font-bold py-2 rounded-lg">Update</button>
-                                        </form>
-                                    </div>
-                                </details>
-                            </div>
                         </div>
-                        {{else}}
-                        <div class="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100 text-gray-400 text-sm">タスクが見つかりません。</div>
-                        {{end}}
+
+                        <div class="flex items-center gap-2">
+                            <details class="relative">
+                                <summary class="list-none cursor-pointer p-2 text-gray-400 hover:text-blue-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </summary>
+                                <div class="absolute right-0 top-full mt-2 p-4 bg-white rounded-2xl shadow-2xl border border-gray-200 z-[100] w-72">
+                                    <form action="/update" method="POST" class="space-y-3 text-left">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase">タスク編集</p>
+                                        <input type="hidden" name="id" value="{{.ID}}">
+                                        <input type="text" name="title" value="{{.Title}}" required class="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                                        <div class="flex gap-2">
+                                            <input type="number" name="duration" value="{{.Duration}}" required class="w-1/2 px-3 py-2 text-xs bg-gray-50 border border-gray-100 rounded-lg">
+                                            <select name="completed" class="w-1/2 px-3 py-2 text-xs bg-gray-50 border border-gray-100 rounded-lg">
+                                                <option value="false" {{if not .Completed}}selected{{end}}>未完了</option>
+                                                <option value="true" {{if .Completed}}selected{{end}}>完了</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="w-full bg-blue-600 text-white text-[10px] font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">更新を保存</button>
+                                    </form>
+                                </div>
+                            </details>
+
+                            <form action="/del" method="POST" class="inline" onsubmit="return confirm('削除しますか？')">
+                                <input type="hidden" name="id" value="{{.ID}}">
+                                <button type="submit" class="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                </form>
+                    {{else}}
+                    <div class="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100 text-gray-400 text-sm italic">
+                        表示できるタスクがありません。
+                    </div>
+                    {{end}}
+                </div>
 
                 <div class="mt-8 flex justify-center items-center gap-4">
                     {{if gt .PrevPage 0}}
                     <a href="/?page={{.PrevPage}}" class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition shadow-sm">⬅️ Prev</a>
+                    {{else}}
+                    <span class="px-4 py-2 text-gray-300 bg-gray-50 border border-gray-100 rounded-xl text-sm font-semibold cursor-not-allowed">⬅️ Prev</span>
                     {{end}}
+                    
                     <span class="text-sm font-bold text-gray-500">Page {{.CurrentPage}}</span>
+                    
                     <a href="/?page={{.NextPage}}" class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition shadow-sm">Next ➡️</a>
                 </div>
             </main>
         </div>
     </div>
+
+    <script>
+    function updateBulkForm(checkbox) {
+        const bulkForm = document.getElementById('bulk-delete-form');
+        if (checkbox.checked) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'ids';
+            input.value = checkbox.value;
+            input.id = 'bulk-id-' + checkbox.value;
+            bulkForm.appendChild(input);
+        } else {
+            const input = document.getElementById('bulk-id-' + checkbox.value);
+            if (input) input.remove();
+        }
+    }
+    </script>
 </body>
 </html>
