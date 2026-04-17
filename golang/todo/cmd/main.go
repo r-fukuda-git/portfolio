@@ -44,16 +44,6 @@ func (l *TaskList) signupUser(username string, password string) error {
 }
 
 // ログイン処理
-func (u *User) loginUser(username string, password string) error {
-	if r.Method == http.MethodPost {
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-	}
-
-	// err := bcrypt.CompareHashAndPassword([]byte(savedHash), []byte(loginPassword))
-	// l.db.QueryRow("SELECT password_hash FROM users WHERE username = $1", username).Scan(&storedHash)
-}
-
 func (l *TaskList) authMiddleware(next http.HandleFunc) http.HandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -72,6 +62,9 @@ func (l *TaskList) authMiddleware(next http.HandleFunc) http.HandleFunc {
 		next(w, r)
 	}
 }
+
+func (l *TaskList)
+
 
 // タスク追加処理
 func (l *TaskList) AddTask(title string, completed bool, duration int, created_at time.Time) error {
