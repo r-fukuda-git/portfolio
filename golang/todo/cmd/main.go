@@ -18,6 +18,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+変更
+
 // サインアップメソッド
 func (l *TaskList) signupUser(username string, password string) error {
 	// 2回に分けるよりOR条件で繋いだ方がいい
