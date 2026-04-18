@@ -1,89 +1,101 @@
 # My Engineering Portfolio
 
-これは、私の技術スキルと学習の軌跡を示すためのポートフォリオプロジェクトです。バックエンドアプリケーション開発と、それを支えるインフラストラクチャの構築・管理能力を示すことを目的としています。
+Go によるアプリケーション開発と、AWS 上のインフラを Terraform で管理する練習・検証用のリポジトリです。
+
+## リポジトリ構成
+
+| パス | 内容 |
+|------|------|
+| `golang/todo` | PostgreSQL 連携のタスク管理 Web アプリ（認証・HTML テンプレート・JSON API） |
+| `golang/bottleneck` | DB アクセスの比較用ミニ HTTP サーバー（クエリ方式とメモリ計測） |
+| `terraform/aws` | AWS 向け Terraform（モジュール＋本番想定の `prd` 環境） |
+| `daily/` | 学習・作業メモ（日付ファイル） |
 
 ---
 
-## 🚀 Projects
+## 1. Todo Web アプリ（`golang/todo`）
 
-このポートフォリオには、以下のプロジェクトが含まれています。
+ブラウザ向けのタスク CRUD、サインアップ／ログイン（パスワードは bcrypt）、認証必須ルート、および `/api/tasks` の JSON API を提供する HTTP サーバーです。`docker-compose.yml` でアプリと PostgreSQL をまとめて起動できます。
 
-### 1. Go Task Manager (CLI)
+### 技術スタック
 
-シンプルなコマンドライン（CLI）ベースのタスク管理アプリケーションです。
+- Go（モジュール名: `todo`）
+- PostgreSQL（`github.com/lib/pq`）
+- `github.com/joho/godotenv`、 `golang.org/x/crypto/bcrypt`
+- Docker / Docker Compose
 
-#### ✨ 主な特徴
-- Go言語によるバックエンド開発スキルを示します。
-- データベース（PostgreSQL）との連携を実装しています。
-- CLIでのインタラクティブな操作が可能です。
+### 環境変数（`.env`）
 
-#### 🛠️ 使用技術
-- **言語**: Go
-- **データベース**: PostgreSQL
-- **その他**: `godotenv` (環境変数管理), `pq` (Go用PostgreSQLドライバ)
+アプリは `godotenv` で `.env` を読みます。Compose で動かす場合の例:
 
-#### 🏃‍♂️ 実行方法 (例)
+- `DB_HOST` … DB サービス名（Compose 内では `db`）
+- `DB_PORT` … `5432`
+- `DB_USER` / `DB_PASSWORD` … `docker-compose.yml` の `POSTGRES_*` と一致させる
+- `DB_NAME` … 利用するデータベース名
+
+初回スキーマ・サンプルデータは `init/init.sql` がコンテナ起動時に流れます。
+
+### 実行例
+
+リポジトリルートから:
+
 ```bash
-# 1. リポジトリをクローン
-git clone https://github.com/[your_username]/[your_repository].git
-cd portfolio/golang/task_manager
+cd golang/todo
+# .env を用意（上記変数を設定）
+docker compose up --build
+```
 
-# 2. 環境変数を設定 (.env.exampleをコピー)
-cp .env.example .env
-# .env ファイルにデータベース接続情報を記述
+ブラウザではホストの **8082**（`8082:8080` のマッピング）にアクセスします。
 
-# 3. 依存関係をインストール
+ローカルで `go run` する場合は、PostgreSQL を別途起動し、同じ変数を設定したうえで `cmd` からビルド・実行してください（作業ディレクトリによってテンプレートパスが変わる点に注意）。
+
+```bash
+cd golang/todo
 go mod tidy
+go run ./cmd/main.go ./cmd/models.go
+```
 
-# 4. アプリケーションを実行
+補助パッケージ `local/` には、メモリ上のタスク一覧など、開発用のローカル実装が含まれます。
+
+---
+
+## 2. Bottleneck 検証（`golang/bottleneck`）
+
+`COUNT` 集計と、大量行をスキャンする方式を切り替えて比較する小さな HTTP サーバーです。ルートは `?type=old` で旧方式、省略時は新方式です。レイテンシログとメモリ使用量のログを出します。
+
+### 実行例
+
+PostgreSQL に `tasks` テーブル等がある前提で、Todo アプリと同様の DB 接続環境変数を `.env` に設定します。
+
+```bash
+cd golang/bottleneck
+go mod tidy
 go run .
 ```
-> **Note**: 上記は一般的な実行例です。あなたのプロジェクトに合わせて詳細を追記・修正してください。
+
+既定では `:8080` で待ち受けます（Todo アプリと同時起動する場合はポートの競合に注意）。
 
 ---
 
-### 2. Terraform AWS Infrastructure
+## 3. Terraform（`terraform/aws`）
 
-上記のGoアプリケーションをホストするためのAWSインフラストラクチャをコードで管理（IaC）するプロジェクトです。
+`modules/` に VPC・サブネット、セキュリティグループ、EC2、IAM、RDS などを分割配置しています。`terraform/aws/modules/eip` に Elastic IP 用モジュールがありますが、現状の `environments/prd` ルートモジュールには未接続です。
 
-#### ✨ 主な特徴
-- Terraformを用いた実践的なInfrastructure as Code (IaC) のスキルを示します。
-- `modules`を活用し、再利用性と保守性の高い構成を意識しています。
-- `environments`で開発・ステージング・本番環境を分離する、実務に近い運用を想定しています。
+### 本番想定ディレクトリでの操作例
 
-#### 🏗️ 想定アーキテクチャ
-このTerraformコードは、以下のようなAWSリソースを構築することを想定しています。
-- **VPC**: プロジェクト専用の独立したネットワーク空間
-- **Subnet**: パブリック/プライベートサブネット
-- **EC2**: Goアプリケーションを実行する仮想サーバー
-- **Security Group**: EC2インスタンスへのアクセスを制御するファイアウォール
-- **EIP**: EC2インスタンスに固定IPアドレスを付与
-- **IAM Role**: EC2インスタンスに適切な権限を付与
-
-#### 🛠️ 使用技術
-- **IaC**: Terraform
-- **クラウド**: AWS
-
-#### 🚀 デプロイ方法 (例)
 ```bash
-# 1. Terraformの環境へ移動 (例: 本番環境)
-cd portfolio/terraform/aws/enviroments/prd
-
-# 2. Terraformを初期化
+cd terraform/aws/enviroments/prd
 terraform init
-
-# 3. 実行計画を確認
 terraform plan
-
-# 4. インフラをデプロイ
 terraform apply
 ```
-> **Note**: こちらも一般的な実行例です。実際のデプロイ手順に合わせて修正してください。
+
+リージョンは `ap-northeast-1` を前提としています。変数・状態ファイル・認証情報は各自の環境に合わせて設定してください。
 
 ---
 
-## 🌱 次のステップ (Next Steps)
+## 今後の伸ばしどころ
 
-- **CI/CDパイプラインの構築**: GitHub Actionsなどを利用して、テストとデプロイを自動化する。
-- **GoアプリケーションのAPI化**: 現在のCLIアプリをREST APIに変更し、フロントエンドから利用できるようにする。
-- **コンテナ化**: Dockerを使ってGoアプリケーションをコンテナ化し、ECSやEKS上での実行を検討する。
+- GitHub Actions などでのテスト・静的解析・デプロイの自動化
+- Terraform のステート管理とレビュー運用（ワークスペースやロックの整理）
+- Todo アプリのテスト整備と、`enviroments` ディレクトリ名の整理などリポジトリのメンテナンス
