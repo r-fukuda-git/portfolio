@@ -158,6 +158,17 @@ func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// タスク追加処理
+func (l *TaskList) AddTask(user_id int, title string, completed bool, duration int, created_at time.Time) error {
+	if title == "" {
+		return errors.New("空")
+	}
+
+	query := `INSERT INTO tasks (user_id, title, completed, duration, created_at) VALUES ($1, $2, $3, $4, $5)`
+	_, err := l.db.Exec(query, user_id, title, completed, duration, created_at)
+	return err
+}
+
 // タスク削除処理
 func (l *TaskList) DelTask(user_id int, taskID int) error {
 	if user_id <= 0 || taskID <= 0 {
@@ -166,6 +177,20 @@ func (l *TaskList) DelTask(user_id int, taskID int) error {
 
 	query := `DELETE FROM tasks WHERE id = $1 AND user_id = $2`
 	_, err := l.db.Exec(query, taskID, user_id)
+	return err
+}
+
+// タスク更新処理
+func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duraion int) error {
+	if id <= 0 {
+		return errors.New("不正なID")
+	}
+	if title == "" {
+		return errors.New("タイトル空です")
+	}
+
+	query := `UPDATE tasks SET title = $1, completed = $2, duration = $3 WHERE id = $4 AND user_id = $5`
+	_, err := l.db.Exec(query, title, completed, duraion, id, user_id)
 	return err
 }
 
@@ -412,7 +437,7 @@ func (l *TaskList) bulkDelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// DBに渡す箱を用意
-		args := []any{user_id}
+		var args []any
 		var placeholders []string
 
 		for i, idText := range idStr {
@@ -423,9 +448,8 @@ func (l *TaskList) bulkDelHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			args = append(args, id)
 
-			placeholders = append(placeholders, fmt.Sprintf("$%d", i+2))
+			placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
 		}
-		// プレースホルダーの順番をずらす
 		query := fmt.Sprintf("DELETE FROM tasks WHERE id IN (%s) AND user_id = $1", strings.Join(placeholders, ","))
 		_, err := l.db.Exec(query, args...)
 		if err != nil {
