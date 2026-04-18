@@ -1,0 +1,102 @@
+package models
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// Taskの構造体を作成
+type Task struct {
+	ID         int
+	Title      string
+	Completed  bool
+	Duration   int
+	Created_at time.Time
+}
+
+// TaskListの構造体を作成、DBへデータ管理
+type TaskList struct {
+	DB *sql.DB
+}
+
+// CRUD...C:CREATE/R:READ/U:UPDATE/D:DELETE
+// タスク追加処理
+func (l *TaskList) AddTask(user_id int, title string, completed bool, duration int, created_at time.Time) error {
+	if title == "" {
+		return errors.New("タイトルが空です")
+	}
+	query := `INSERT INTO tasks (user_id, title, completed, duration, created_at) VALUES ($1, $2, $3, $4, $5)`
+	_, err := l.DB.Exec(query, user_id, title, completed, duration, created_at)
+	return err
+
+}
+
+// タスク読み取り処理
+// 返り値が2つ設定しており、[]Taskとerror
+func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit int, offset int) ([]Task, error) {
+	query := `SELECT id, title, completed, duraion, created_at FROM tasks WHERE user_id = $1`
+
+	// anyで箱を用意
+	var args []any
+	// user_idをargsという箱に入れる。現在user_idは$1、箱に1つしか値がない
+	args = append(args, user_id)
+
+	// 検索キーワードがある場合の処理
+	if keyword != "" {
+		// キーワードをargsという箱に入れる
+		// 現在argsという箱は2個入っているため、ここでは$2となる
+		args = append(args, "%"+keyword+"%")
+		query += fmt.Sprintf(" AND title LIKE $%d", len(args))
+	}
+
+	// フィルター機能
+	if status == "true" || status == "false" {
+		// statusをargsという箱に入れる
+		args = append(args, status)
+		query += fmt.Sprintf(" AND completed = $%d", len(args))
+	}
+
+	// ソート機能
+	query += "ORDER BY id"
+
+	// ページネーション設定
+	// limitとoffsetをそれぞれargsという箱に入れる
+	args = append(args, limit, offset)
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args))
+
+	// データベース問い合わせ
+	rows, err := l.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	//DB接続しているので、終了の合図
+	defer rows.Close()
+
+	// 受け取ったデータを構造体へ入れる
+	var tasks []Task
+
+	// 次のデータがないかループで確認
+	for rows.Next() {
+		var t Task
+		// ポインタ & を使って直接書き込み
+		if err := rows.Scan(&t.ID, &t.Title, &t.Completed, &t.Duration, &t.Created_at); err != nil {
+			// 返り値としてtasksが空の場合は、errを返す
+			return nil, err
+		}
+		// データが入った小箱を、tasksに返す
+		tasks = append(tasks, t)
+	}
+	return tasks, nil
+}
+
+// タスク更新処理
+func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duraion int) error {
+	if id <= 0 || title == "" {
+		return errors.New("不正なIDまたはタイトルが空です。")
+	}
+	query := `UPDATE tasks SET title = $1, completed = $2, duration = $3 WHERE id = $4 AND user_id = $5`
+	_, err := l.DB.Exec(query, title, completed, duraion, id, user_id)
+	return err
+}
