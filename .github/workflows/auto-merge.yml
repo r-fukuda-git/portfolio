@@ -4,7 +4,8 @@ name: Auto Create PR and Merge
 on:
   push:
     branches:
-      - 'dev/**' # 例：「auto/」から始まるブランチをプッシュした時のみ発動
+      - 'dev'
+      - 'dev/**'
 
 jobs:
   auto-pr-merge:
