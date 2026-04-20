@@ -111,3 +111,5 @@ func (l *TaskList) DelTask(user_id int, taskID int) error {
 	_, err := l.DB.Exec(query, taskID, user_id)
 	return err
 }
+
+// サインアップ処理
