@@ -113,3 +113,8 @@ func (l *TaskList) DelTask(user_id int, taskID int) error {
 }
 
 // サインアップ処理
+func (l *TaskList) SignupUser(username string, password string) error {
+	if username == "" || password == "" {
+
+	}
+}
