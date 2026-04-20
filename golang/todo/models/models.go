@@ -23,6 +23,18 @@ type TaskList struct {
 	DB *sql.DB
 }
 
+// HTMLへ渡すデータ構造体
+type TemplateData struct {
+	TotalCount     int
+	CompletedCount int
+	PendingCount   int
+	Tasks          []Task
+	Created_at     time.Time
+	CurrentPage    int
+	PrevPage       int
+	NextPage       int
+}
+
 // CRUD...C:CREATE/R:READ/U:UPDATE/D:DELETE
 // タスク追加処理
 func (l *TaskList) AddTask(user_id int, title string, completed bool, duration int, created_at time.Time) error {
