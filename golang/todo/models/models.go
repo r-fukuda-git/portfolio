@@ -105,6 +105,7 @@ func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool,
 
 // タスク削除処理
 func (l *TaskList) DelTask(user_id int, taskID int) error {
+	// まずは空チェック
 	if user_id <= 0 || taskID <= 0 {
 		return errors.New("不正なIDを入力しています。")
 	}
@@ -116,13 +117,24 @@ func (l *TaskList) DelTask(user_id int, taskID int) error {
 
 // サインアップ処理
 func (l *TaskList) SignupUser(username string, password string) error {
+	// 同様に空チェック
 	if username == "" || password == "" {
 		return errors.New("ユーザー名、もしくはパスワードが空です。")
 	}
 
+	// パスワードをstringからバイト列に変換
+	// パスワードをどれくらい複雑に、時間をかけてかき混ぜるか（コスト）を計算
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
+
+	query := `INSERT INTO users (username, password_hash) VALUES ($1, $2)`
+	// errの箱があり、2回目の登場なので、上書きを実施
+	_, err = l.DB.Exec(query, username, string(hashedPassword))
+	if err != nil {
+		return err
+	}
+	return nil
 
 }
