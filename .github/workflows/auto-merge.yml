@@ -1,0 +1,28 @@
+name: Auto Create PR and Merge
+
+# どのブランチをプッシュした時に発動させるかを指定します
+on:
+  push:
+    branches:
+      - 'auto/**' # 例：「auto/」から始まるブランチをプッシュした時のみ発動
+
+jobs:
+  auto-pr-merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request and Merge
+        env:
+          # GitHub Actionsが用意する一時的なトークンを利用します
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. PRを自動作成
+          gh pr create --base main --head ${{ github.ref_name }} --title "Auto PR: ${{ github.ref_name }}" --body "GitHub Actionsにより自動作成・マージされたPRです"
+          
+          # 2. 作成したPRを即座にマージ
+          gh pr merge ${{ github.ref_name }} --merge --admin
