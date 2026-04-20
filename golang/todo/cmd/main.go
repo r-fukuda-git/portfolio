@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,35 +16,12 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
+
+	"todo/models"
 )
 
-// サインアップメソッド
-func (l *TaskList) signupUser(username string, password string) error {
-	// 2回に分けるよりOR条件で繋いだ方がいい
-	if username == "" || password == "" {
-		return errors.New("空")
-	}
-
-	// パスワード
-	// 平文のパスワードをハッシュに変更する
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-
-	// 入力された情報をDBに保存
-	query := `INSERT INTO users (username, password_hash) VALUES ($1, $2)`
-
-	_, err = l.db.Exec(query, username, string(hashedPassword))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // サインアップハンドラー
-func (l *TaskList) signupHandler(w http.ResponseWriter, r *http.Request) {
+func (l *models.TaskList) signupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		tmpl, err := template.ParseFiles("templates/signup.html")
 		if err != nil {
@@ -158,60 +134,8 @@ func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DBから情報を取得
-func (l *TaskList) GetAllTasks(user_id int, keyword string, status string, limit int, offset int) ([]Task, error) {
-	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE user_id = $1`
-	var args []any
-	args = append(args, user_id)
-
-	if keyword != "" {
-		args = append(args, "%"+keyword+"%")
-		query += fmt.Sprintf(" AND title LIKE $%d", len(args))
-	}
-
-	if status == "true" || status == "false" {
-		args = append(args, status)
-		query += fmt.Sprintf(" AND completed = $%d", len(args))
-	}
-
-	query += " ORDER BY id"
-
-	args = append(args, limit, offset)
-	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args))
-
-	rows, err := l.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var tasks []Task
-	for rows.Next() {
-		var t Task
-		if err := rows.Scan(&t.ID, &t.Title, &t.Completed, &t.Duration, &t.Created_at); err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, t)
-	}
-	return tasks, nil
-}
-
 // GET処理
 func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
-	// ページネーション設定
-	pageStr := r.URL.Query().Get("page")
-	page := 1
-	if pageStr != "" {
-		p, err := strconv.Atoi(pageStr)
-		if err == nil && p > 0 {
-			page = p
-		}
-	}
-
-	user_id := r.Context().Value("user_id").(int)
-
-	limit := 10
-	offset := (page - 1) * limit
 
 	// 検索・フィルター設定
 	keyword := r.URL.Query().Get("q")
@@ -279,46 +203,6 @@ func (l *TaskList) indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "systemerr", http.StatusInternalServerError)
 		return
 	}
-}
-
-// POST処理
-func (l *TaskList) addHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		// フォームから値を取得
-		title := r.FormValue("title")
-
-		// string型からbool型へ変換
-		compStr := r.FormValue("completed")
-		completed, err := strconv.ParseBool(compStr)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効なステータスです", http.StatusBadRequest)
-			return
-		}
-
-		// string型からint型へ変換
-		durStr := r.FormValue("duration")
-		duration, err := strconv.Atoi(durStr)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効なステータスです", http.StatusBadRequest)
-			return
-		}
-
-		// contextからuser_idを取り出す
-		user_id := r.Context().Value("user_id").(int)
-
-		// 作成日時を定義
-		now := time.Now()
-
-		// DBへ保存
-		err = l.AddTask(user_id, title, completed, duration, now)
-		if err != nil {
-			http.Error(w, "保存失敗", http.StatusInternalServerError)
-			return
-		}
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // DELETE処理
