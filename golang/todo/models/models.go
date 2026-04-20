@@ -100,3 +100,14 @@ func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool,
 	_, err := l.DB.Exec(query, title, completed, duraion, id, user_id)
 	return err
 }
+
+// タスク削除処理
+func (l *TaskList) DelTask(user_id int, taskID int) error {
+	if user_id <= 0 || taskID <= 0 {
+		return errors.New("不正なIDを入力しています。")
+	}
+
+	query := `DELETE FROM tasks WHERE id = $1 AND user_id =$2`
+	_, err := l.DB.Exec(query, taskID, user_id)
+	return err
+}

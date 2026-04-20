@@ -158,17 +158,6 @@ func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// タスク削除処理
-func (l *TaskList) DelTask(user_id int, taskID int) error {
-	if user_id <= 0 || taskID <= 0 {
-		return errors.New("不正なID")
-	}
-
-	query := `DELETE FROM tasks WHERE id = $1 AND user_id = $2`
-	_, err := l.db.Exec(query, taskID, user_id)
-	return err
-}
-
 // DBから情報を取得
 func (l *TaskList) GetAllTasks(user_id int, keyword string, status string, limit int, offset int) ([]Task, error) {
 	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE user_id = $1`
