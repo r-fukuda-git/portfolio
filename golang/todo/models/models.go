@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Taskの構造体を作成
@@ -115,6 +117,12 @@ func (l *TaskList) DelTask(user_id int, taskID int) error {
 // サインアップ処理
 func (l *TaskList) SignupUser(username string, password string) error {
 	if username == "" || password == "" {
-
+		return errors.New("ユーザー名、もしくはパスワードが空です。")
 	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
 }
