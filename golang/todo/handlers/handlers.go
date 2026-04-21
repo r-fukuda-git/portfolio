@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -101,7 +102,11 @@ func (h *TaskHandler) ReadHandler(w http.ResponseWriter, r *http.Request) {
 	var created_at_time time.Time
 	err = h.Models.DB.QueryRow(`SELECT created_at FROM tasks WHERE user_id = $1`, user_id).Scan(&created_at_time)
 	if err != nil {
-		log.Printf("データ取得失敗:%v", err)
+		if err == sql.ErrNoRows {
+			log.Println("タスク0件です")
+		} else {
+			log.Printf("データ取得失敗:%v", err)
+		}
 	}
 
 	pendingCount := totalCount - completedCount
