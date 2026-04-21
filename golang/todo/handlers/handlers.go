@@ -1,6 +1,7 @@
-package main
+package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,10 +12,16 @@ import (
 	"todo/models"
 
 	"github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
+// ハンドラー用構造体
+type TaskHandler struct {
+	Models *models.TaskList
+}
+
 // タスク追加ハンドラー(POST処理)
-func (l *models.TaskList) AddHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) AddHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		// フォームからタイトルの値を取得
 		title := r.FormValue("title")
@@ -42,7 +49,7 @@ func (l *models.TaskList) AddHandler(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 
 		// DBへ保存
-		err = l.models.AddTask(user_id, title, completed, duration, now)
+		err = h.Models.AddTask(user_id, title, completed, duration, now)
 		if err != nil {
 			http.Error(w, "保存失敗", http.StatusInternalServerError)
 			return
@@ -52,7 +59,7 @@ func (l *models.TaskList) AddHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // タスク読み取りハンドラー(GET)
-func (l *models.TaskList) ReadHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) ReadHandler(w http.ResponseWriter, r *http.Request) {
 	// contextからuser_idを取得
 	user_id := r.Context().Value("user_id").(int)
 
@@ -75,7 +82,7 @@ func (l *models.TaskList) ReadHandler(w http.ResponseWriter, r *http.Request) {
 	keyword := r.URL.Query().Get("q")
 	statusStr := r.URL.Query().Get("status")
 
-	tasks, err := l.models.ReadTask(user_id, keyword, statusStr, limit, offset)
+	tasks, err := h.Models.ReadTask(user_id, keyword, statusStr, limit, offset)
 	if err != nil {
 		log.Printf("DB取得エラー:%v", err)
 		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
@@ -85,14 +92,14 @@ func (l *models.TaskList) ReadHandler(w http.ResponseWriter, r *http.Request) {
 	// HTMLに渡すデータの準備
 	var totalCount, completedCount int
 	// CASE文を使って、「全部の数」と「完了した数」を同時に計算
-	query := `SELECT COUNT(id),COALESE(SUM(CASE WHEN completed = true THEN 1 ELSE 0 END),0) FROM tasks WHERE user_id = $1`
-	_, err = l.DB.QueryRow(query, user_id).Scan(&totalCount, &completedCount)
+	query := `SELECT COUNT(id),COALESCE(SUM(CASE WHEN completed = true THEN 1 ELSE 0 END),0) FROM tasks WHERE user_id = $1`
+	err = h.Models.DB.QueryRow(query, user_id).Scan(&totalCount, &completedCount)
 	if err != nil {
 		log.Printf("データ取得失敗:%v", err)
 	}
 
 	var created_at_time time.Time
-	_, err = l.DB.QueryRow(`SELECT created_at FROM tasks WHERE user_id = $1`).Scan(&created_at_time)
+	err = h.Models.DB.QueryRow(`SELECT created_at FROM tasks WHERE user_id = $1`, user_id).Scan(&created_at_time)
 	if err != nil {
 		log.Printf("データ取得失敗:%v", err)
 	}
@@ -126,7 +133,7 @@ func (l *models.TaskList) ReadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // タスク更新ハンドラー
-func (l *models.TaskList) UpdateHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		user_id := r.Context().Value("user_id").(int)
 		title := r.FormValue("title")
@@ -152,7 +159,7 @@ func (l *models.TaskList) UpdateHandler(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		err = l.models.UpdateTask(user_id, id, title, completed, duration)
+		err = h.Models.UpdateTask(user_id, id, title, completed, duration)
 		if err != nil {
 			http.Error(w, "更新処理失敗", http.StatusInternalServerError)
 			return
@@ -162,18 +169,18 @@ func (l *models.TaskList) UpdateHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 // タスク削除ハンドラー
-func (l *models.TaskList) DelHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) DelHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		user_id := r.Context().Value("user_id").(int)
 
-		id, err := common.GetFormInt(w, "int")
+		id, err := common.GetFormInt(r, "int")
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "無効な数字です", http.StatusInternalServerError)
 			return
 		}
 
-		err = l.models.DelTask(user_id, id)
+		err = h.Models.DelTask(user_id, id)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "削除失敗", http.StatusInternalServerError)
@@ -185,8 +192,10 @@ func (l *models.TaskList) DelHandler(w http.ResponseWriter, r *http.Request) {
 
 // 追加処理
 // 一括処理タスクハンドラー
-func (l *models.TaskList) BulkDelHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) BulkDelHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
+
+		user_id := r.Context().Value("user_id").(int)
 
 		// フォーム解析
 		r.ParseForm()
@@ -199,7 +208,7 @@ func (l *models.TaskList) BulkDelHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		// 数字を入れる用の配列を用意
-		var ids int
+		var ids []int
 
 		for _, idText := range idStr {
 			id, err := strconv.Atoi(idText)
@@ -210,8 +219,8 @@ func (l *models.TaskList) BulkDelHandler(w http.ResponseWriter, r *http.Request)
 			ids = append(ids, id)
 		}
 
-		query := `DELETE FROM tasks WHERE user_id = $1 AND id = ANY($2)`
-		_, err := l.DB.Exec(query, user_id, pq.Array(ids))
+		query := `DELETE FROM tasks WHERE user_id = $1 AND id = ANY($2::int[])`
+		_, err := h.Models.DB.Exec(query, user_id, pq.Array(ids))
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "一括削除失敗", http.StatusInternalServerError)
@@ -222,10 +231,10 @@ func (l *models.TaskList) BulkDelHandler(w http.ResponseWriter, r *http.Request)
 }
 
 // API用ハンドラー
-func (l *models.TaskList) ApiTasksHandlers(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) ApiTasksHandlers(w http.ResponseWriter, r *http.Request) {
 	// APIで表示するのは全件
 	user_id := r.Context().Value("user_id").(int)
-	tasks, err := l.models.ReadTask(user_id, "", "", 100, 0)
+	tasks, err := h.Models.ReadTask(user_id, "", "", 100, 0)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "APIデータ取得失敗", http.StatusInternalServerError)
@@ -244,7 +253,7 @@ func (l *models.TaskList) ApiTasksHandlers(w http.ResponseWriter, r *http.Reques
 }
 
 // サインアップ用ハンドラ-
-func (l *models.TaskList) SignUpHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		tmpl, err := template.ParseFiles("templates/signup.html")
 		if err != nil {
@@ -266,22 +275,92 @@ func (l *models.TaskList) SignUpHandler(w http.ResponseWriter, r *http.Request) 
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
-		err := l.models.SignupUser(username, password)
-		log.Printf("サインアップ完了:%v", username)
+		err := h.Models.SignupUser(username, password)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "サインアップに失敗しました", http.StatusInternalServerError)
 			return
 		}
+		log.Printf("サインアップ完了:%v", username)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
 // ログイン時のクッキー処理用ハンドラー
-func (l *models.TaskList) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
+func (h *TaskHandler) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// クッキーの確認
+		cookie, err := r.Cookie("session_id")
+		if err != nil {
+			log.Println(err)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 
+		// ログインしていれば、クッキーの中身を取得
+		user_id, err := h.Models.GetUserId(cookie.Value)
+		if err != nil {
+			log.Println(err)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		// 次の処理へ渡す
+		ctx := context.WithValue(r.Context(), "user_id", user_id)
+		next(w, r.WithContext(ctx))
+	}
+}
+
+// ログイン処理ハンドラー
+func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		tmpl, err := template.ParseFiles("templates/login.html")
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "データ読み込みに失敗しました", http.StatusInternalServerError)
+			return
+		}
+		err = tmpl.Execute(w, nil)
+
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "データ表示失敗しました", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		// errという箱にDBからのパスワードを取得
+		var storeHash string
+		err := h.Models.DB.QueryRow(`SELECT password_hash FROM users WHERE username = $1`, username).Scan(&storeHash)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "DBにパスワードが存在しません", http.StatusUnauthorized)
+			return
+		}
+
+		// DBと入力パスワードの照合
+		err = bcrypt.CompareHashAndPassword([]byte(storeHash), []byte(password))
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "ユーザー名かパスワードが違います", http.StatusUnauthorized)
+			return
+		}
+
+		// クッキーの発行
+		cookie := &http.Cookie{
+			Name:     "session_id",
+			Value:    username,
+			Path:     "/",
+			HttpOnly: true,
+			MaxAge:   120, //有効期限を設定
+		}
+		http.SetCookie(w, cookie)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
