@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -149,4 +150,16 @@ func (l *TaskList) SignupUser(username string, password string) error {
 	}
 	return nil
 
+}
+
+// ユーザー名からID取得処理
+func (l *TaskList) GetUserId(username string) (int, error) {
+	var user_id int
+	query := `SELECT id FROM users WHERE username = $1`
+	err := l.DB.QueryRow(query, username).Scan(&user_id)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	return user_id, err
 }

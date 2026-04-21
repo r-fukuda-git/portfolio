@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"text/template"
 	"time"
 
@@ -19,40 +16,6 @@ import (
 
 	"todo/models"
 )
-
-// サインアップハンドラー
-func (l *models.TaskList) signupHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		tmpl, err := template.ParseFiles("templates/signup.html")
-		if err != nil {
-			log.Printf("読み込みエラー", err)
-			http.Error(w, "読み込みエラー", http.StatusInternalServerError)
-			return
-		}
-
-		err = tmpl.Execute(w, nil)
-		if err != nil {
-			log.Printf("表示エラー", err)
-			http.Error(w, "表示エラー", http.StatusInternalServerError)
-			return
-		}
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-
-		// 既に作ったDB処理を呼び出す
-		err := l.signupUser(username, password)
-		log.Printf("ログイン成功:%v", username)
-		if err != nil {
-			http.Error(w, "登録に失敗しました", http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-}
 
 // ログイン処理
 func (l *TaskList) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -134,132 +97,6 @@ func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DELETE処理
-// HTMLはGETとPOSTしかない
-func (l *TaskList) delHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-
-		user_id := r.Context().Value("user_id").(int)
-
-		// string型からint型へ変更
-		intStr := r.FormValue("id")
-		id, err := strconv.Atoi(intStr)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効なステータス", http.StatusBadRequest)
-			return
-		}
-
-		err = l.DelTask(user_id, id)
-		if err != nil {
-			http.Error(w, "削除失敗", http.StatusInternalServerError)
-			return
-		}
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-// UPDATE処理
-func (l *TaskList) updateHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-
-		user_id := r.Context().Value("user_id").(int)
-		title := r.FormValue("title")
-
-		compStr := r.FormValue("completed")
-		completed, err := strconv.ParseBool(compStr)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効な文字", http.StatusInternalServerError)
-			return
-		}
-
-		durStr := r.FormValue("duration")
-		duration, err := strconv.Atoi(durStr)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効ですよ", http.StatusInternalServerError)
-			return
-		}
-
-		intStr := r.FormValue("id")
-		id, err := strconv.Atoi(intStr)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "更新失敗", http.StatusInternalServerError)
-			return
-		}
-
-		err = l.UpdateTask(user_id, id, title, completed, duration)
-		if err != nil {
-			http.Error(w, "更新失敗", http.StatusInternalServerError)
-			return
-		}
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-// 一括処理
-func (l *TaskList) bulkDelHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-
-		// フォーム解析
-		r.ParseForm()
-		idStr := r.Form["ids"]
-
-		// 空チェック
-		if len(idStr) == 0 {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-
-		// DBに渡す箱を用意
-		args := []any{user_id}
-		var placeholders []string
-
-		for i, idText := range idStr {
-			id, err := strconv.Atoi(idText)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			args = append(args, id)
-
-			placeholders = append(placeholders, fmt.Sprintf("$%d", i+2))
-		}
-		// プレースホルダーの順番をずらす
-		query := fmt.Sprintf("DELETE FROM tasks WHERE id IN (%s) AND user_id = $1", strings.Join(placeholders, ","))
-		_, err := l.db.Exec(query, args...)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "削除失敗", http.StatusInternalServerError)
-			return
-		}
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-// API用のハンドラー
-func (l *TaskList) apiTasksHandler(w http.ResponseWriter, r *http.Request) {
-	// 全件取得
-	user_id := r.Context().Value("user_id").(int)
-	tasks, err := l.GetAllTasks(user_id, "", "", 100, 0)
-	if err != nil {
-		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
-		return
-	}
-
-	// ブラウザにJSONデータを送る内容を明示的に記載
-	w.Header().Set("Content-Type", "application/json")
-
-	// tasksをJSONに変換し、wに書き込み
-	err = json.NewEncoder(w).Encode(tasks)
-	if err != nil {
-		http.Error(w, "JSON変換エラー", http.StatusInternalServerError)
-		return
-	}
-}
-
 func main() {
 	_ = godotenv.Load()
 
@@ -291,18 +128,18 @@ func main() {
 		fmt.Printf("応答なし:%v", err)
 		return
 	}
-	myTasks := TaskList{db: db}
+	myTasks := models.TaskList{db: db}
 
 	// 誰でもみられるページ
 	http.HandleFunc("/login", myTasks.loginHandler)
 	http.HandleFunc("/signup", myTasks.signupHandler)
 
 	// authMiddlewareで包むことによりcookieを持つ人しか見られない
-	http.HandleFunc("/", myTasks.authMiddleware(myTasks.indexHandler))
-	http.HandleFunc("/add", myTasks.authMiddleware(myTasks.addHandler))
-	http.HandleFunc("/del", myTasks.authMiddleware(myTasks.delHandler))
-	http.HandleFunc("/update", myTasks.authMiddleware(myTasks.updateHandler))
-	http.HandleFunc("/bulk-del", myTasks.authMiddleware(myTasks.bulkDelHandler))
+	http.HandleFunc("/", myTasks.authMiddleware(myTasks.ReadHandler))
+	http.HandleFunc("/add", myTasks.authMiddleware(myTasks.AddHandler))
+	http.HandleFunc("/del", myTasks.authMiddleware(myTasks.DelHandler))
+	http.HandleFunc("/update", myTasks.authMiddleware(myTasks.UpdateHandler))
+	http.HandleFunc("/bulk-del", myTasks.authMiddleware(myTasks.BulkDelHandler))
 	http.HandleFunc("/api/tasks", myTasks.authMiddleware(myTasks.apiTasksHandler))
 
 	fmt.Println("Server started at :8080")

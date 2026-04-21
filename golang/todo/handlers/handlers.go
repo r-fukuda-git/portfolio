@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 	"time"
 	"todo/common"
 	"todo/models"
+
+	"github.com/lib/pq"
 )
 
 // タスク追加ハンドラー(POST処理)
@@ -141,5 +144,144 @@ func (l *models.TaskList) UpdateHandler(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, "無効な数字です", http.StatusInternalServerError)
 			return
 		}
+
+		id, err := common.GetFormInt(r, "int")
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "無効な数字です", http.StatusInternalServerError)
+			return
+		}
+
+		err = l.models.UpdateTask(user_id, id, title, completed, duration)
+		if err != nil {
+			http.Error(w, "更新処理失敗", http.StatusInternalServerError)
+			return
+		}
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// タスク削除ハンドラー
+func (l *models.TaskList) DelHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		user_id := r.Context().Value("user_id").(int)
+
+		id, err := common.GetFormInt(w, "int")
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "無効な数字です", http.StatusInternalServerError)
+			return
+		}
+
+		err = l.models.DelTask(user_id, id)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "削除失敗", http.StatusInternalServerError)
+			return
+		}
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// 追加処理
+// 一括処理タスクハンドラー
+func (l *models.TaskList) BulkDelHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+
+		// フォーム解析
+		r.ParseForm()
+		idStr := r.Form["ids"]
+
+		//　フォームから入力された値のチェック
+		if len(idStr) == 0 {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+
+		// 数字を入れる用の配列を用意
+		var ids int
+
+		for _, idText := range idStr {
+			id, err := strconv.Atoi(idText)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			ids = append(ids, id)
+		}
+
+		query := `DELETE FROM tasks WHERE user_id = $1 AND id = ANY($2)`
+		_, err := l.DB.Exec(query, user_id, pq.Array(ids))
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "一括削除失敗", http.StatusInternalServerError)
+			return
+		}
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// API用ハンドラー
+func (l *models.TaskList) ApiTasksHandlers(w http.ResponseWriter, r *http.Request) {
+	// APIで表示するのは全件
+	user_id := r.Context().Value("user_id").(int)
+	tasks, err := l.models.ReadTask(user_id, "", "", 100, 0)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "APIデータ取得失敗", http.StatusInternalServerError)
+		return
+	}
+	// ブラウザにJSONデータを送る内容を明示的に記載
+	w.Header().Set("Content-Type", "application/json")
+
+	// tasksをJSONに変換して、wに書き込み
+	err = json.NewEncoder(w).Encode(tasks)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "JSON変換エラー", http.StatusInternalServerError)
+		return
+	}
+}
+
+// サインアップ用ハンドラ-
+func (l *models.TaskList) SignUpHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		tmpl, err := template.ParseFiles("templates/signup.html")
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "データ読み込み失敗", http.StatusInternalServerError)
+			return
+		}
+		err = tmpl.Execute(w, nil)
+
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "データ表示エラー", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		err := l.models.SignupUser(username, password)
+		log.Printf("サインアップ完了:%v", username)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "サインアップに失敗しました", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
+// ログイン時のクッキー処理用ハンドラー
+func (l *models.TaskList) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		// クッキーの確認
+
 	}
 }
