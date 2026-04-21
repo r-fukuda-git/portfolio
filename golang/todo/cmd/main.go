@@ -1,101 +1,19 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"text/template"
 	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 
+	"todo/handlers"
 	"todo/models"
 )
-
-// ログイン処理
-func (l *TaskList) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		// リクエストからsession_idを探す
-		cookie, err := r.Cookie("session_id")
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return //return しないと、勝手に中に入られる
-		}
-
-		// ログインしていれば、ユーザーを指定して、クッキーの中身を取り出す
-		username := cookie.Value
-		var user_id int
-		err = l.db.QueryRow(`SELECT id FROM users WHERE username = $1`, username).Scan(&user_id)
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		// contextにuser_idという名前でuser_idを入れる
-		ctx := context.WithValue(r.Context(), "user_id", user_id)
-
-		// 会員証の確認が取れたために、新しいリクエスト(r.WithContext)と共に本来の処理へ
-		next(w, r.WithContext(ctx))
-	}
-}
-
-// ログイン処理
-func (l *TaskList) loginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		tmpl, err := template.ParseFiles("templates/login.html")
-		if err != nil {
-			log.Printf("ログインテンプレート読み込みエラー:%v", err)
-			http.Error(w, "システムエラー", http.StatusInternalServerError)
-			return
-		}
-
-		err = tmpl.Execute(w, nil)
-		if err != nil {
-			log.Printf("表示エラー:%v", err)
-			http.Error(w, "表示えらー", http.StatusInternalServerError)
-			return
-		}
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-
-		// DBからハッシュ化されたパスワードを取得
-		var storeHash string
-		err := l.db.QueryRow(`SELECT password_hash FROM users WHERE username = $1`, username).Scan(&storeHash)
-		if err != nil {
-			http.Error(w, "ユーザー名かパスワードが異なります。", http.StatusUnauthorized)
-			return
-		}
-
-		// パスワード照合
-		err = bcrypt.CompareHashAndPassword([]byte(storeHash), []byte(password))
-		if err != nil {
-			http.Error(w, "ユーザー名かパスワードが違います", http.StatusUnauthorized)
-			return
-		}
-
-		// クッキーの発行
-		cookie := &http.Cookie{
-			Name:     "session_id",
-			Value:    username,
-			Path:     "/",
-			HttpOnly: true,
-			MaxAge:   120, //有効期限を設定
-		}
-		http.SetCookie(w, cookie)
-
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-}
 
 func main() {
 	_ = godotenv.Load()
@@ -128,19 +46,24 @@ func main() {
 		fmt.Printf("応答なし:%v", err)
 		return
 	}
-	myTasks := models.TaskList{db: db}
+
+	// dbのポインタとして渡し、初期化する
+	myTasks := &models.TaskList{DB: db}
+
+	// Handlersパッケージのインスタンスを生成
+	myHandler := &handlers.TaskHandler{Models: myTasks}
 
 	// 誰でもみられるページ
-	http.HandleFunc("/login", myTasks.loginHandler)
-	http.HandleFunc("/signup", myTasks.signupHandler)
+	http.HandleFunc("/login", myHandler.LoginHandler)
+	http.HandleFunc("/signup", myHandler.SignUpHandler)
 
 	// authMiddlewareで包むことによりcookieを持つ人しか見られない
-	http.HandleFunc("/", myTasks.authMiddleware(myTasks.ReadHandler))
-	http.HandleFunc("/add", myTasks.authMiddleware(myTasks.AddHandler))
-	http.HandleFunc("/del", myTasks.authMiddleware(myTasks.DelHandler))
-	http.HandleFunc("/update", myTasks.authMiddleware(myTasks.UpdateHandler))
-	http.HandleFunc("/bulk-del", myTasks.authMiddleware(myTasks.BulkDelHandler))
-	http.HandleFunc("/api/tasks", myTasks.authMiddleware(myTasks.apiTasksHandler))
+	http.HandleFunc("/", myHandler.AuthCookie(myHandler.ReadHandler))
+	http.HandleFunc("/add", myHandler.AuthCookie(myHandler.AddHandler))
+	http.HandleFunc("/del", myHandler.AuthCookie(myHandler.DelHandler))
+	http.HandleFunc("/update", myHandler.AuthCookie(myHandler.UpdateHandler))
+	http.HandleFunc("/bulk-del", myHandler.AuthCookie(myHandler.BulkDelHandler))
+	http.HandleFunc("/api/tasks", myHandler.AuthCookie(myHandler.ApiTasksHandlers))
 
 	fmt.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

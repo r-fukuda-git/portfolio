@@ -51,7 +51,7 @@ func (l *TaskList) AddTask(user_id int, title string, completed bool, duration i
 // タスク読み取り処理
 // 返り値が2つ設定しており、[]Taskとerror
 func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit int, offset int) ([]Task, error) {
-	query := `SELECT id, title, completed, duraion, created_at FROM tasks WHERE user_id = $1`
+	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE user_id = $1`
 
 	// anyで箱を用意
 	var args []any
@@ -74,7 +74,7 @@ func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit in
 	}
 
 	// ソート機能
-	query += "ORDER BY id"
+	query += " ORDER BY id"
 
 	// ページネーション設定
 	// limitとoffsetをそれぞれargsという箱に入れる
@@ -107,12 +107,12 @@ func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit in
 }
 
 // タスク更新処理
-func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duraion int) error {
+func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duration int) error {
 	if id <= 0 || title == "" {
 		return errors.New("不正なIDまたはタイトルが空です。")
 	}
 	query := `UPDATE tasks SET title = $1, completed = $2, duration = $3 WHERE id = $4 AND user_id = $5`
-	_, err := l.DB.Exec(query, title, completed, duraion, id, user_id)
+	_, err := l.DB.Exec(query, title, completed, duration, id, user_id)
 	return err
 }
 
