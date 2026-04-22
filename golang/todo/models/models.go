@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,6 +36,9 @@ type TemplateData struct {
 	PrevPage       int
 	NextPage       int
 }
+
+// 関数外で重複エラーの定義
+var ErrUserAlreadyExists = errors.New("このユーザー名は既に使用されています")
 
 // CRUD...C:CREATE/R:READ/U:UPDATE/D:DELETE
 // タスク追加処理
@@ -146,10 +150,12 @@ func (l *TaskList) SignupUser(username string, password string) error {
 	// errの箱があり、2回目の登場なので、上書きを実施
 	_, err = l.DB.Exec(query, username, string(hashedPassword))
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return ErrUserAlreadyExists
+		}
 		return err
 	}
 	return nil
-
 }
 
 // ユーザー名からID取得処理

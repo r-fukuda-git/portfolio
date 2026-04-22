@@ -56,6 +56,7 @@ func main() {
 	// 誰でもみられるページ
 	http.HandleFunc("/login", myHandler.LoginHandler)
 	http.HandleFunc("/signup", myHandler.SignUpHandler)
+	http.HandleFunc("/logout", myHandler.LogoutHandler)
 
 	// authMiddlewareで包むことによりcookieを持つ人しか見られない
 	http.HandleFunc("/", myHandler.AuthCookie(myHandler.ReadHandler))
