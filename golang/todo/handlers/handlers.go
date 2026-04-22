@@ -157,7 +157,7 @@ func (h *TaskHandler) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		id, err := common.GetFormInt(r, "int")
+		id, err := common.GetFormInt(r, "id")
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "無効な数字です", http.StatusInternalServerError)
@@ -350,7 +350,8 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		err := h.Models.DB.QueryRow(`SELECT password_hash FROM users WHERE username = $1`, username).Scan(&storeHash)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "DBにパスワードが存在しません", http.StatusUnauthorized)
+			http.Error(w, "ユーザーが存在しません", http.StatusUnauthorized)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
 

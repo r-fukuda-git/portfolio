@@ -5,24 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | TaskFlow</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        zinc: { 50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46', 800: '#27272a', 900: '#18181b', 950: '#09090b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fafafa; color: #18181b; }
+    </style>
 </head>
-<body class="bg-slate-50 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 w-full max-w-md">
-        <h2 class="text-2xl font-bold text-center text-gray-900 mb-8">Login to TaskFlow</h2>
-        <form action="/login" method="POST" class="space-y-6">
-            <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-2 ml-1">Username</label>
-                <input type="text" name="username" required class="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+<body class="flex items-center justify-center min-h-screen antialiased selection:bg-zinc-200 px-4">
+    
+    <div class="w-full max-w-sm">
+        <div class="flex flex-col items-center mb-8">
+            <div class="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-sm mb-4">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-2 ml-1">Password</label>
-                <input type="password" name="password" required class="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all">Sign In</button>
-        </form>
-        <p class="mt-8 text-center text-sm text-gray-500">
-            Don't have an account? <a href="/signup" class="text-blue-600 font-bold hover:underline">Sign Up</a>
+            <h2 class="text-2xl font-bold tracking-tight text-zinc-900">Welcome back</h2>
+            <p class="text-sm text-zinc-500 mt-1.5">認証情報を入力してログインしてください</p>
+        </div>
+
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-zinc-200">
+            <form action="/login" method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Username</label>
+                    <input type="text" name="username" required class="w-full px-3 py-2.5 text-sm bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900 transition-all placeholder:text-zinc-400" placeholder="your_username">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Password</label>
+                    <input type="password" name="password" required class="w-full px-3 py-2.5 text-sm bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900 transition-all placeholder:text-zinc-400" placeholder="••••••••">
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-2.5 rounded-lg text-sm transition-colors shadow-sm">サインイン</button>
+                </div>
+            </form>
+        </div>
+
+        <p class="mt-6 text-center text-sm text-zinc-500">
+            アカウントを持っていませんか？ <a href="/signup" class="text-zinc-900 font-semibold hover:underline decoration-zinc-300 underline-offset-4">サインアップ</a>
         </p>
     </div>
+
 </body>
 </html>
