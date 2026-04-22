@@ -282,6 +282,11 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := h.Models.SignupUser(username, password)
 		if err != nil {
+			if err == models.ErrUserAlreadyExists {
+				log.Println("重複登録の試行がありました:", username)
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
 			log.Println(err)
 			http.Error(w, "サインアップに失敗しました", http.StatusInternalServerError)
 			return
@@ -368,4 +373,19 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, cookie)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
+}
+
+// ログアウト処理ハンドラー
+// ログアウト：ブラウザが持っているsession_idを破棄して、未ログイン状態にすること
+func (h *TaskHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// クッキーの破棄
+	cookie := &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1, //有効期限を即座に破棄する
+	}
+	http.SetCookie(w, cookie)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
