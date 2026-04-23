@@ -1,7 +1,9 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -49,7 +51,6 @@ func (l *TaskList) AddTask(user_id int, title string, completed bool, duration i
 	query := `INSERT INTO tasks (user_id, title, completed, duration, created_at) VALUES ($1, $2, $3, $4, $5)`
 	_, err := l.DB.Exec(query, user_id, title, completed, duration, created_at)
 	return err
-
 }
 
 // タスク読み取り処理
@@ -90,7 +91,7 @@ func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit in
 	if err != nil {
 		return nil, err
 	}
-	//DB接続しているので、終了の合図
+	// DB接続しているので、終了の合図
 	defer rows.Close()
 
 	// 受け取ったデータを構造体へ入れる
@@ -167,5 +168,38 @@ func (l *TaskList) GetUserId(username string) (int, error) {
 		log.Println(err)
 		return 0, err
 	}
+	return user_id, err
+}
+
+// ランダムで推測不可能なセッショントークンを生成する関数（ヒント）
+func GenerateSessionToken() (string, error) {
+	// 32バイトの空の箱（配列）を用意します
+	b := make([]byte, 32)
+
+	// crypto/rand を使って、安全な乱数を箱に詰めます
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	// バイト列（コンピュータ語）そのままだとCookieに入れられないので、
+	// 16進数の文字列（a-f, 0-9のみの安全な文字列）に変換して返します
+	return hex.EncodeToString(b), nil
+}
+
+// セッションをDBに保存
+func (l *TaskList) CreateSession(user_id int, token string) error {
+	expiresAt := time.Now().Add(24 * time.Hour)
+	query := `INSERT INTO sessions (user_id, session_token, expires_at) VALUES ($1, $2, $3)`
+	_, err := l.DB.Exec(query, user_id, token, expiresAt)
+	return err
+}
+
+// トークンからユーザーIDを特定
+func (l *TaskList) GetUserIdToken(token string) (int, error) {
+	var user_id int
+	// 有効期限内のもののみ取得
+	query := `SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()`
+	err := l.DB.QueryRow(query, token).Scan(&user_id)
 	return user_id, err
 }
