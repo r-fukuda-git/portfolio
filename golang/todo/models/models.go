@@ -1,15 +1,18 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,7 +27,8 @@ type Task struct {
 
 // TaskListの構造体を作成、DBへデータ管理
 type TaskList struct {
-	DB *sql.DB
+	DB    *sql.DB
+	Redis *redis.Client
 }
 
 // HTMLへ渡すデータ構造体
@@ -173,8 +177,8 @@ func (l *TaskList) GetUserId(username string) (int, error) {
 
 // ランダムで推測不可能なセッショントークンを生成する関数（ヒント）
 func GenerateSessionToken() (string, error) {
-	// 32バイトの空の箱（配列）を用意します
-	b := make([]byte, 32)
+	// 64バイトの空の箱（配列）を用意します
+	b := make([]byte, 64)
 
 	// crypto/rand を使って、安全な乱数を箱に詰めます
 	_, err := rand.Read(b)
@@ -189,17 +193,37 @@ func GenerateSessionToken() (string, error) {
 
 // セッションをDBに保存
 func (l *TaskList) CreateSession(user_id int, token string) error {
-	expiresAt := time.Now().Add(24 * time.Hour)
-	query := `INSERT INTO sessions (user_id, session_token, expires_at) VALUES ($1, $2, $3)`
-	_, err := l.DB.Exec(query, user_id, token, expiresAt)
-	return err
+	// 下記はRedisに保存のケース
+	ctx := context.Background()
+	return l.Redis.Set(ctx, token, user_id, 24*time.Hour).Err()
+	// 下記についてはDBへの保存のケース
+	/*
+		expiresAt := time.Now().Add(24 * time.Hour)
+		query := `INSERT INTO sessions (user_id, session_token, expires_at) VALUES ($1, $2, $3)`
+		_, err := l.DB.Exec(query, user_id, token, expiresAt)
+		return err
+	*/
 }
 
 // トークンからユーザーIDを特定
 func (l *TaskList) GetUserIdToken(token string) (int, error) {
-	var user_id int
-	// 有効期限内のもののみ取得
-	query := `SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()`
-	err := l.DB.QueryRow(query, token).Scan(&user_id)
-	return user_id, err
+	// 下記はRedisに保存のケース
+	ctx := context.Background()
+
+	val, err := l.Redis.Get(ctx, token).Result()
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+
+	user_id, _ := strconv.Atoi(val)
+	return user_id, nil
+	// 下記についてはDBへの保存のケース
+	/*
+		var user_id int
+		// 有効期限内のもののみ取得
+		query := `SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()`
+		err := l.DB.QueryRow(query, token).Scan(&user_id)
+		return user_id, err
+	*/
 }

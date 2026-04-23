@@ -15,9 +15,9 @@ CREATE TABLE users (
 CREATE TABLE sessions (
     id SERIAL PRIMARY KEY,
     session_token TEXT UNIQUE NOT NULL,
-    user_id INTEGER REFERENCES user_id(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     expires_at TIMESTAMPTZ NOT NULL -- 有効期限を設定しないと無限にログインできてしまう
-)
+);
 
 ALTER TABLE tasks ADD COLUMN user_id INTEGER REFERENCES users(id);
 

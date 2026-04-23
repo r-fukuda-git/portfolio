@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 
 	"todo/handlers"
 	"todo/models"
@@ -47,8 +49,28 @@ func main() {
 		return
 	}
 
+	// Redisクライアントの初期化を実施
+	addr := os.Getenv("REDIS_ADDR")
+	rpass := os.Getenv("REDIS_PASS")
+
+	// DBについてはstring型ではなく、int型にする必要がある
+	dbStr := os.Getenv("REDIS_DB")
+	dbNum, err := strconv.Atoi(dbStr)
+	if err != nil {
+		dbNum = 0
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: rpass,
+		DB:       dbNum,
+	})
+
 	// dbのポインタとして渡し、初期化する
-	myTasks := &models.TaskList{DB: db}
+	myTasks := &models.TaskList{
+		DB:    db,
+		Redis: rdb,
+	}
 
 	// Handlersパッケージのインスタンスを生成
 	myHandler := &handlers.TaskHandler{Models: myTasks}
