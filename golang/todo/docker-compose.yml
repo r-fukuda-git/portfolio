@@ -8,6 +8,8 @@ services:
     depends_on:
       db:
         condition: service_started # DBが健康になってから起動
+      redis:
+        condition: service_started
 
   db:
     image: postgres:latest
@@ -18,4 +20,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - ./init:/docker-entrypoint-initdb.d
+    restart: always
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
     restart: always
