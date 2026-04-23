@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"text/template"
 	"time"
+
 	"todo/common"
 	"todo/models"
 
@@ -267,7 +268,6 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = tmpl.Execute(w, nil)
-
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "データ表示エラー", http.StatusInternalServerError)
@@ -299,7 +299,6 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 // ログイン時のクッキー処理用ハンドラー
 func (h *TaskHandler) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		// クッキーの確認
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
@@ -309,9 +308,9 @@ func (h *TaskHandler) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// ログインしていれば、クッキーの中身を取得
-		user_id, err := h.Models.GetUserId(cookie.Value)
+		user_id, err := h.Models.GetUserIdToken(cookie.Value)
 		if err != nil {
-			log.Println(err)
+			log.Println("不正または期限切れのセッション", err)
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -332,7 +331,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = tmpl.Execute(w, nil)
-
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "データ表示失敗しました", http.StatusInternalServerError)
@@ -362,14 +360,36 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "ユーザー名かパスワードが違います", http.StatusUnauthorized)
 			return
 		}
+		// ログイン成功した人にセッショントークンを渡す
+		// user_idをユーザー名から取得する
+		user_id, err := h.Models.GetUserId(username)
+		if err != nil {
+			log.Println(err)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		// ユーザーに渡すためのトークンを作成
+		token, err := models.GenerateSessionToken()
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "トークン作成失敗", http.StatusInternalServerError)
+			return
+		}
+		// DBにuser_idとtokenを記録
+		err = h.Models.CreateSession(user_id, token)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "DBへ登録失敗しました", http.StatusInternalServerError)
+			return
+		}
 
 		// クッキーの発行
 		cookie := &http.Cookie{
 			Name:     "session_id",
-			Value:    username,
+			Value:    token,
 			Path:     "/",
 			HttpOnly: true,
-			MaxAge:   120, //有効期限を設定
+			MaxAge:   120, // 有効期限を設定
 		}
 		http.SetCookie(w, cookie)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -385,7 +405,7 @@ func (h *TaskHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		MaxAge:   -1, //有効期限を即座に破棄する
+		MaxAge:   -1, // 有効期限を即座に破棄する
 	}
 	http.SetCookie(w, cookie)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
