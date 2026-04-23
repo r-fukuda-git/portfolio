@@ -1,10 +1,16 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
+
+	"github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Taskの構造体を作成
@@ -21,6 +27,21 @@ type TaskList struct {
 	DB *sql.DB
 }
 
+// HTMLへ渡すデータ構造体
+type TemplateData struct {
+	TotalCount     int
+	CompletedCount int
+	PendingCount   int
+	Tasks          []Task
+	Created_at     time.Time
+	CurrentPage    int
+	PrevPage       int
+	NextPage       int
+}
+
+// 関数外で重複エラーの定義
+var ErrUserAlreadyExists = errors.New("このユーザー名は既に使用されています")
+
 // CRUD...C:CREATE/R:READ/U:UPDATE/D:DELETE
 // タスク追加処理
 func (l *TaskList) AddTask(user_id int, title string, completed bool, duration int, created_at time.Time) error {
@@ -30,13 +51,12 @@ func (l *TaskList) AddTask(user_id int, title string, completed bool, duration i
 	query := `INSERT INTO tasks (user_id, title, completed, duration, created_at) VALUES ($1, $2, $3, $4, $5)`
 	_, err := l.DB.Exec(query, user_id, title, completed, duration, created_at)
 	return err
-
 }
 
 // タスク読み取り処理
 // 返り値が2つ設定しており、[]Taskとerror
 func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit int, offset int) ([]Task, error) {
-	query := `SELECT id, title, completed, duraion, created_at FROM tasks WHERE user_id = $1`
+	query := `SELECT id, title, completed, duration, created_at FROM tasks WHERE user_id = $1`
 
 	// anyで箱を用意
 	var args []any
@@ -59,7 +79,7 @@ func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit in
 	}
 
 	// ソート機能
-	query += "ORDER BY id"
+	query += " ORDER BY id"
 
 	// ページネーション設定
 	// limitとoffsetをそれぞれargsという箱に入れる
@@ -71,7 +91,7 @@ func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit in
 	if err != nil {
 		return nil, err
 	}
-	//DB接続しているので、終了の合図
+	// DB接続しているので、終了の合図
 	defer rows.Close()
 
 	// 受け取ったデータを構造体へ入れる
@@ -92,17 +112,18 @@ func (l *TaskList) ReadTask(user_id int, keyword string, status string, limit in
 }
 
 // タスク更新処理
-func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duraion int) error {
+func (l *TaskList) UpdateTask(user_id int, id int, title string, completed bool, duration int) error {
 	if id <= 0 || title == "" {
 		return errors.New("不正なIDまたはタイトルが空です。")
 	}
 	query := `UPDATE tasks SET title = $1, completed = $2, duration = $3 WHERE id = $4 AND user_id = $5`
-	_, err := l.DB.Exec(query, title, completed, duraion, id, user_id)
+	_, err := l.DB.Exec(query, title, completed, duration, id, user_id)
 	return err
 }
 
 // タスク削除処理
 func (l *TaskList) DelTask(user_id int, taskID int) error {
+	// まずは空チェック
 	if user_id <= 0 || taskID <= 0 {
 		return errors.New("不正なIDを入力しています。")
 	}
@@ -113,3 +134,72 @@ func (l *TaskList) DelTask(user_id int, taskID int) error {
 }
 
 // サインアップ処理
+func (l *TaskList) SignupUser(username string, password string) error {
+	// 同様に空チェック
+	if username == "" || password == "" {
+		return errors.New("ユーザー名、もしくはパスワードが空です。")
+	}
+
+	// パスワードをstringからバイト列に変換
+	// パスワードをどれくらい複雑に、時間をかけてかき混ぜるか（コスト）を計算
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	query := `INSERT INTO users (username, password_hash) VALUES ($1, $2)`
+	// errの箱があり、2回目の登場なので、上書きを実施
+	_, err = l.DB.Exec(query, username, string(hashedPassword))
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return ErrUserAlreadyExists
+		}
+		return err
+	}
+	return nil
+}
+
+// ユーザー名からID取得処理
+func (l *TaskList) GetUserId(username string) (int, error) {
+	var user_id int
+	query := `SELECT id FROM users WHERE username = $1`
+	err := l.DB.QueryRow(query, username).Scan(&user_id)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	return user_id, err
+}
+
+// ランダムで推測不可能なセッショントークンを生成する関数（ヒント）
+func GenerateSessionToken() (string, error) {
+	// 32バイトの空の箱（配列）を用意します
+	b := make([]byte, 32)
+
+	// crypto/rand を使って、安全な乱数を箱に詰めます
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	// バイト列（コンピュータ語）そのままだとCookieに入れられないので、
+	// 16進数の文字列（a-f, 0-9のみの安全な文字列）に変換して返します
+	return hex.EncodeToString(b), nil
+}
+
+// セッションをDBに保存
+func (l *TaskList) CreateSession(user_id int, token string) error {
+	expiresAt := time.Now().Add(24 * time.Hour)
+	query := `INSERT INTO sessions (user_id, session_token, expires_at) VALUES ($1, $2, $3)`
+	_, err := l.DB.Exec(query, user_id, token, expiresAt)
+	return err
+}
+
+// トークンからユーザーIDを特定
+func (l *TaskList) GetUserIdToken(token string) (int, error) {
+	var user_id int
+	// 有効期限内のもののみ取得
+	query := `SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()`
+	err := l.DB.QueryRow(query, token).Scan(&user_id)
+	return user_id, err
+}
