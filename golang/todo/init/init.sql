@@ -12,15 +12,20 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL -- ハッシュ化したものを使用する
 );
 
+-- 下記セッションデータをRedisへ移行
+/*
 CREATE TABLE sessions (
     id SERIAL PRIMARY KEY,
     session_token TEXT UNIQUE NOT NULL,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     expires_at TIMESTAMPTZ NOT NULL -- 有効期限を設定しないと無限にログインできてしまう
 );
+*/
 
 ALTER TABLE tasks ADD COLUMN user_id INTEGER REFERENCES users(id);
 
+-- 下記サンプルデータは不要
+/*
 INSERT INTO tasks (title, completed, duration)
 SELECT 
     (ARRAY['【仕事】', '【個人】', '【急ぎ】', '【検討中】'])[floor(random() * 4 + 1)] || 
@@ -34,3 +39,4 @@ SELECT
     END
 FROM generate_series(1, 100) AS i
 ON CONFLICT DO NOTHING;
+*/
