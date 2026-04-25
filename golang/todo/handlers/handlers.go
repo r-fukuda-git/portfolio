@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"log"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -333,7 +332,6 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("データ読み込み失敗",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "SignUpHandler"))
 
 			http.Error(w, "データ読み込み失敗", http.StatusInternalServerError)
@@ -343,7 +341,6 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("データ表示エラー",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "SignUpHandler"))
 
 			http.Error(w, "データ表示エラー", http.StatusInternalServerError)
@@ -387,7 +384,6 @@ func (h *TaskHandler) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			slog.Error("Cookieが存在しません",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "AuthCookie"))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -417,7 +413,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("データ読み込みに失敗しました",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "LoginHandler"))
 
 			http.Error(w, "データ読み込みに失敗しました", http.StatusInternalServerError)
@@ -427,7 +422,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("データ表示失敗しました",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "LoginHandler"))
 
 			http.Error(w, "データ表示失敗しました", http.StatusInternalServerError)
@@ -446,7 +440,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("ユーザーが存在しません",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "LoginHandler"))
 
 			http.Error(w, "ユーザーが存在しません", http.StatusUnauthorized)
@@ -459,7 +452,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("ユーザー名かパスワードが違います",
 				slog.Any("error_detail", err),
-				slog.Int("user_id", user_id),
 				slog.String("handler", "LoginHandler"))
 
 			http.Error(w, "ユーザー名かパスワードが違います", http.StatusUnauthorized)
@@ -489,7 +481,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		// DBにuser_idとtokenを記録
 		err = h.Models.CreateSession(user_id, token)
 		if err != nil {
-			slog.Error("ユーザー名の取得に失敗しました。",
 			slog.Error("ユーザー名の取得に失敗しました。",
 				slog.Any("error_detail", err),
 				slog.Int("user_id", user_id),
