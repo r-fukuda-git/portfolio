@@ -371,7 +371,7 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "サインアップに失敗しました", http.StatusInternalServerError)
 			return
 		}
-		slog.Info("サインアップ完了", slog.String("username", "username"))
+		slog.Info("サインアップ完了", slog.String("username", username))
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
