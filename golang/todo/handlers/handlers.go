@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"text/template"
@@ -31,16 +32,22 @@ func (h *TaskHandler) AddHandler(w http.ResponseWriter, r *http.Request) {
 		// string型からbool型へ変換
 		completed, err := common.GetFormBool(r, "completed")
 		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効なステータスです", http.StatusBadRequest)
+			slog.Error("無効なステータスです",
+				slog.Bool("action", false),
+				slog.Any("error_detail", err))
+
+			http.Error(w, "無効なリクエストです", http.StatusBadRequest)
 			return
 		}
 
 		// string型からint型へ変換
 		duration, err := common.GetFormInt(r, "duration")
 		if err != nil {
-			log.Println(err)
-			http.Error(w, "無効なステータスです", http.StatusBadRequest)
+			slog.Error("無効なステータスです",
+				slog.Int("action", 0),
+				slog.Any("error_detail", err))
+
+			http.Error(w, "無効なリクエストです", http.StatusBadRequest)
 			return
 		}
 
@@ -53,8 +60,10 @@ func (h *TaskHandler) AddHandler(w http.ResponseWriter, r *http.Request) {
 		// DBへ保存
 		err = h.Models.AddTask(user_id, title, completed, duration, now)
 		if err != nil {
-			http.Error(w, "保存失敗", http.StatusInternalServerError)
-			return
+			slog.Error("タスクの保存に失敗しました",
+				slog.Int("user_id", user_id),
+				slog.Any("error_detail", err),
+				slog.String("handler", "AddHandler"))
 		}
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -86,7 +95,11 @@ func (h *TaskHandler) ReadHandler(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := h.Models.ReadTask(user_id, keyword, statusStr, limit, offset)
 	if err != nil {
-		log.Printf("DB取得エラー:%v", err)
+		slog.Error("データ取得に失敗しました",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("handler", "ReadHandler"))
+
 		http.Error(w, "データ取得失敗", http.StatusInternalServerError)
 		return
 	}
@@ -97,16 +110,25 @@ func (h *TaskHandler) ReadHandler(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT COUNT(id),COALESCE(SUM(CASE WHEN completed = true THEN 1 ELSE 0 END),0) FROM tasks WHERE user_id = $1`
 	err = h.Models.DB.QueryRow(query, user_id).Scan(&totalCount, &completedCount)
 	if err != nil {
-		log.Printf("データ取得失敗:%v", err)
+		slog.Error("データ取得に失敗しました",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("handler", "ReadHandler"))
 	}
 
 	var created_at_time time.Time
 	err = h.Models.DB.QueryRow(`SELECT created_at FROM tasks WHERE user_id = $1`, user_id).Scan(&created_at_time)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Println("タスク0件です")
+			slog.Error("データ0件です",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "ReadHandler"))
 		} else {
-			log.Printf("データ取得失敗:%v", err)
+			slog.Error("データ取得に失敗しました",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "ReadHandler"))
 		}
 	}
 
@@ -125,14 +147,22 @@ func (h *TaskHandler) ReadHandler(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := template.ParseFiles("templates/index.html")
 	if err != nil {
-		log.Printf("テンプレート読み込みエラー:%v", err)
+		slog.Error("テンプレート読み込みエラー",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("handler", "ReadHandler"))
+
 		http.Error(w, "システムエラーが発生", http.StatusInternalServerError)
 		return
 	}
 
 	err = tmpl.Execute(w, Data)
 	if err != nil {
-		log.Printf("実行エラー:%v", err)
+		slog.Error("システム実行エラー",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("handler", "ReadHandler"))
+
 		http.Error(w, "システムエラー", http.StatusInternalServerError)
 		return
 	}
@@ -146,27 +176,44 @@ func (h *TaskHandler) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 		completed, err := common.GetFormBool(r, "completed")
 		if err != nil {
-			log.Println(err)
+			slog.Error("無効な判定です",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "UpdateHandler"))
+
 			http.Error(w, "無効な判定です", http.StatusInternalServerError)
 			return
 		}
 
 		duration, err := common.GetFormInt(r, "duration")
 		if err != nil {
-			log.Println(err)
+			slog.Error("無効な判定です",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "UpdateHandler"))
+
 			http.Error(w, "無効な数字です", http.StatusInternalServerError)
 			return
 		}
 
 		id, err := common.GetFormInt(r, "id")
 		if err != nil {
-			log.Println(err)
+			slog.Error("無効な判定です",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "UpdateHandler"))
+
 			http.Error(w, "無効な数字です", http.StatusInternalServerError)
 			return
 		}
 
 		err = h.Models.UpdateTask(user_id, id, title, completed, duration)
 		if err != nil {
+			slog.Error("タスクの更新に失敗しました",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "UpdateHandler"))
+
 			http.Error(w, "更新処理失敗", http.StatusInternalServerError)
 			return
 		}
@@ -181,14 +228,22 @@ func (h *TaskHandler) DelHandler(w http.ResponseWriter, r *http.Request) {
 
 		id, err := common.GetFormInt(r, "int")
 		if err != nil {
-			log.Println(err)
+			slog.Error("無効なステータスです",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "DelHandler"))
+
 			http.Error(w, "無効な数字です", http.StatusInternalServerError)
 			return
 		}
 
 		err = h.Models.DelTask(user_id, id)
 		if err != nil {
-			log.Println(err)
+			slog.Error("無効なステータスです",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "DelHandler"))
+
 			http.Error(w, "削除失敗", http.StatusInternalServerError)
 			return
 		}
@@ -219,7 +274,10 @@ func (h *TaskHandler) BulkDelHandler(w http.ResponseWriter, r *http.Request) {
 		for _, idText := range idStr {
 			id, err := strconv.Atoi(idText)
 			if err != nil {
-				log.Println(err)
+				slog.Error("無効なステータスです",
+					slog.Any("error_detail", err),
+					slog.Int("user_id", user_id),
+					slog.String("handler", "BulkDelHandler"))
 				return
 			}
 			ids = append(ids, id)
@@ -228,7 +286,11 @@ func (h *TaskHandler) BulkDelHandler(w http.ResponseWriter, r *http.Request) {
 		query := `DELETE FROM tasks WHERE user_id = $1 AND id = ANY($2::int[])`
 		_, err := h.Models.DB.Exec(query, user_id, pq.Array(ids))
 		if err != nil {
-			log.Println(err)
+			slog.Error("実行エラー",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "BulkDelHandler"))
+
 			http.Error(w, "一括削除失敗", http.StatusInternalServerError)
 			return
 		}
@@ -242,7 +304,10 @@ func (h *TaskHandler) ApiTasksHandlers(w http.ResponseWriter, r *http.Request) {
 	user_id := r.Context().Value("user_id").(int)
 	tasks, err := h.Models.ReadTask(user_id, "", "", 100, 0)
 	if err != nil {
-		log.Println(err)
+		slog.Error("APIデータ取得失敗",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("handler", "ApiTasksHandlers"))
 		http.Error(w, "APIデータ取得失敗", http.StatusInternalServerError)
 		return
 	}
@@ -252,7 +317,10 @@ func (h *TaskHandler) ApiTasksHandlers(w http.ResponseWriter, r *http.Request) {
 	// tasksをJSONに変換して、wに書き込み
 	err = json.NewEncoder(w).Encode(tasks)
 	if err != nil {
-		log.Println(err)
+		slog.Error("JSON変換エラー",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("handler", "ApiTasksHandlers"))
 		http.Error(w, "JSON変換エラー", http.StatusInternalServerError)
 		return
 	}
@@ -263,13 +331,21 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		tmpl, err := template.ParseFiles("templates/signup.html")
 		if err != nil {
-			log.Println(err)
+			slog.Error("データ読み込み失敗",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "SignUpHandler"))
+
 			http.Error(w, "データ読み込み失敗", http.StatusInternalServerError)
 			return
 		}
 		err = tmpl.Execute(w, nil)
 		if err != nil {
-			log.Println(err)
+			slog.Error("データ表示エラー",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "SignUpHandler"))
+
 			http.Error(w, "データ表示エラー", http.StatusInternalServerError)
 			return
 		}
@@ -283,15 +359,22 @@ func (h *TaskHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		err := h.Models.SignupUser(username, password)
 		if err != nil {
 			if err == models.ErrUserAlreadyExists {
-				log.Println("重複登録の試行がありました:", username)
+				slog.Error("重複登録の試行がありました",
+					slog.Any("error_detail", err),
+					slog.String("username", username),
+					slog.String("handler", "SignUpHandler"))
+
 				http.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
-			log.Println(err)
+			slog.Error("サインアップに失敗しました",
+				slog.Any("error_detail", err),
+				slog.String("username", username),
+				slog.String("handler", "SignUpHandler"))
 			http.Error(w, "サインアップに失敗しました", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("サインアップ完了:%v", username)
+		slog.Info("サインアップ完了", slog.String("username", "username"))
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -302,7 +385,10 @@ func (h *TaskHandler) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
 		// クッキーの確認
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
-			log.Println(err)
+			slog.Error("Cookieが存在しません",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "AuthCookie"))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -310,7 +396,10 @@ func (h *TaskHandler) AuthCookie(next http.HandlerFunc) http.HandlerFunc {
 		// ログインしていれば、クッキーの中身を取得
 		user_id, err := h.Models.GetUserIdToken(cookie.Value)
 		if err != nil {
-			log.Println("不正または期限切れのセッション", err)
+			slog.Error("不正または期限切れのセッション",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "AuthCookie"))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -326,13 +415,21 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		tmpl, err := template.ParseFiles("templates/login.html")
 		if err != nil {
-			log.Println(err)
+			slog.Error("データ読み込みに失敗しました",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
+
 			http.Error(w, "データ読み込みに失敗しました", http.StatusInternalServerError)
 			return
 		}
 		err = tmpl.Execute(w, nil)
 		if err != nil {
-			log.Println(err)
+			slog.Error("データ表示失敗しました",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
+
 			http.Error(w, "データ表示失敗しました", http.StatusInternalServerError)
 			return
 		}
@@ -347,7 +444,11 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		var storeHash string
 		err := h.Models.DB.QueryRow(`SELECT password_hash FROM users WHERE username = $1`, username).Scan(&storeHash)
 		if err != nil {
-			log.Println(err)
+			slog.Error("ユーザーが存在しません",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
+
 			http.Error(w, "ユーザーが存在しません", http.StatusUnauthorized)
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
@@ -356,7 +457,11 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		// DBと入力パスワードの照合
 		err = bcrypt.CompareHashAndPassword([]byte(storeHash), []byte(password))
 		if err != nil {
-			log.Println(err)
+			slog.Error("ユーザー名かパスワードが違います",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
+
 			http.Error(w, "ユーザー名かパスワードが違います", http.StatusUnauthorized)
 			return
 		}
@@ -364,21 +469,31 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		// user_idをユーザー名から取得する
 		user_id, err := h.Models.GetUserId(username)
 		if err != nil {
-			log.Println(err)
+			slog.Error("ユーザー名の取得に失敗しました。",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 		// ユーザーに渡すためのトークンを作成
 		token, err := models.GenerateSessionToken()
 		if err != nil {
-			log.Println(err)
+			slog.Error("トークン作成失敗",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
 			http.Error(w, "トークン作成失敗", http.StatusInternalServerError)
 			return
 		}
 		// DBにuser_idとtokenを記録
 		err = h.Models.CreateSession(user_id, token)
 		if err != nil {
-			log.Println(err)
+			slog.Error("ユーザー名の取得に失敗しました。",
+			slog.Error("ユーザー名の取得に失敗しました。",
+				slog.Any("error_detail", err),
+				slog.Int("user_id", user_id),
+				slog.String("handler", "LoginHandler"))
 			http.Error(w, "DBへ登録失敗しました", http.StatusInternalServerError)
 			return
 		}
