@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,6 +18,11 @@ import (
 )
 
 func main() {
+	// ロガー初期化
+	// 部品(NewJSONHandler)を、本体(slog.New)の中に入れてからセット
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	_ = godotenv.Load()
 
 	host := os.Getenv("DB_HOST")
@@ -35,17 +40,24 @@ func main() {
 		if err == nil && db.Ping() == nil {
 			break
 		}
-		fmt.Println("DB接続中")
+		slog.Info("DB接続中...", slog.Int("retry_count", i+1))
 		time.Sleep(2 * time.Second)
 	}
 
 	if err != nil {
-		log.Fatal("DB接続失敗", err)
+		slog.Error("DB接続失敗しました",
+			slog.String("action", "db_init"),
+			slog.Any("error_detail", err),
+		)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		fmt.Printf("応答なし:%v", err)
+		slog.Error("応答なし",
+			slog.String("action", "db_init"),
+			slog.Any("error_detail", err),
+		)
 		return
 	}
 
@@ -57,7 +69,11 @@ func main() {
 	dbStr := os.Getenv("REDIS_DB")
 	dbNum, err := strconv.Atoi(dbStr)
 	if err != nil {
-		dbNum = 0
+		slog.Error("RedisのDB番号変換に失敗しました",
+			slog.String("action", "redis_init"),
+			slog.Any("error_detail", err),
+		)
+		os.Exit(1)
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -88,6 +104,11 @@ func main() {
 	http.HandleFunc("/bulk-del", myHandler.AuthCookie(myHandler.BulkDelHandler))
 	http.HandleFunc("/api/tasks", myHandler.AuthCookie(myHandler.ApiTasksHandlers))
 
-	fmt.Println("Server started at :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	slog.Info("サーバを起動します", slog.String("port", "8080"))
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		slog.Error("サーバが異常終了しました",
+			slog.String("action", "server_start"),
+			slog.Any("error_detail", err))
+	}
+	os.Exit(1)
 }
