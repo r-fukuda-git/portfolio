@@ -443,7 +443,6 @@ func (h *TaskHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 				slog.String("handler", "LoginHandler"))
 
 			http.Error(w, "ユーザーが存在しません", http.StatusUnauthorized)
-			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
 
