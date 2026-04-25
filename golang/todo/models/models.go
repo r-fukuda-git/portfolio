@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -169,7 +169,10 @@ func (l *TaskList) GetUserId(username string) (int, error) {
 	query := `SELECT id FROM users WHERE username = $1`
 	err := l.DB.QueryRow(query, username).Scan(&user_id)
 	if err != nil {
-		log.Println(err)
+		slog.Error("ユーザー名からID取得に失敗しました",
+			slog.Any("error_detail", err),
+			slog.Int("user_id", user_id),
+			slog.String("method", "GetUserId"))
 		return 0, err
 	}
 	return user_id, err
@@ -212,7 +215,9 @@ func (l *TaskList) GetUserIdToken(token string) (int, error) {
 
 	val, err := l.Redis.Get(ctx, token).Result()
 	if err != nil {
-		log.Println(err)
+		slog.Error("トークンからユーザーIDを特定に失敗しました",
+			slog.Any("error_detail", err),
+			slog.String("method", "GetUserId"))
 		return 0, err
 	}
 
