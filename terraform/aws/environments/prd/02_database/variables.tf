@@ -6,6 +6,14 @@ variable "project_name" {
   type = string
 }
 
+variable "source_cidr_blocks" {
+  type = list(string)
+}
+
+variable "target_cidr_blocks" {
+  type = list(string)
+}
+
 variable "instance_class" {
   type = string
 }

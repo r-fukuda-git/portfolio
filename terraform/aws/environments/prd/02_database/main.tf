@@ -2,6 +2,13 @@ provider "aws" {
   region = "ap-northeast-1"
 }
 
+data "terraform_remote_state" "network" {
+  backend = "local"
+  config = {
+    path = "../01_network/terraform.tfstate"
+  }
+}
+
 module "rds" {
   source                  = "../../../modules/rds"
   project_name            = var.project_name
@@ -22,9 +29,11 @@ module "rds" {
 
 module "security_group" {
   source             = "../../../modules/sg"
-  vpc_id             = module.networking.vpc_id
   env                = var.env
   project_name       = var.project_name
   source_cidr_blocks = var.source_cidr_blocks
   target_cidr_blocks = var.target_cidr_blocks
+
+  # Networkレイヤーから取得
+  vpc_id = data.terraform_remote_state.network.outputs.vpc_id
 }
