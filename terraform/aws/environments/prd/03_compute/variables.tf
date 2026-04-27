@@ -21,3 +21,11 @@ variable "key_path" {
 variable "disable_api_termination" {
   type = bool
 }
+
+variable "source_cidr_blocks" {
+  type = list(string)
+}
+
+variable "target_cidr_blocks" {
+  type = list(string)
+}

@@ -14,10 +14,6 @@ variable "source_cidr_blocks" {
   type = list(string)
 }
 
-variable "target_cidr_blocks" {
-  type = list(string)
-}
-
 variable "public_subnet_1a" {
   type = string
 }
