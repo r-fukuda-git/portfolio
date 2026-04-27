@@ -15,3 +15,12 @@ module "rds" {
   maintenance_window      = var.maintenance_window
   backup_retention_period = var.backup_retention_period
 }
+
+module "security_group" {
+  source             = "../../../modules/sg"
+  vpc_id             = module.networking.vpc_id
+  env                = var.env
+  project_name       = var.project_name
+  source_cidr_blocks = var.source_cidr_blocks
+  target_cidr_blocks = var.target_cidr_blocks
+}
