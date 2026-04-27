@@ -1,3 +1,7 @@
+provider "aws" {
+  region = "ap-northeast-1"
+}
+
 module "rds" {
   source                  = "../../../modules/rds"
   project_name            = var.project_name
