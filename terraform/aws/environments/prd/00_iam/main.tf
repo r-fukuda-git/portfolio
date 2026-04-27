@@ -7,7 +7,3 @@ module "iam" {
   env          = var.env
   project_name = var.project_name
 }
-
-output "iam_instance_profile" {
-  value = module.iam.iam_instance_profile
-}
