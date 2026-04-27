@@ -10,10 +10,13 @@ data "terraform_remote_state" "network" {
 }
 
 module "rds" {
-  source                  = "../../../modules/rds"
-  project_name            = var.project_name
-  env                     = var.env
-  subnet_ids              = [module.networking.subnet_private_id_1a, module.networking.subnet_private_id_1c]
+  source       = "../../../modules/rds"
+  project_name = var.project_name
+  env          = var.env
+  subnet_ids = [
+    data.terraform_remote_state.network.outputs.subnet_private_id_1a,
+    data.terraform_remote_state.network.outputs.subnet_private_id_1c
+  ]
   vpc_security_group_ids  = [module.security_group.private_sg_id]
   instance_class          = var.instance_class
   engine                  = var.engine
