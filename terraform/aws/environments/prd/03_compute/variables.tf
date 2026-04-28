@@ -29,3 +29,23 @@ variable "source_cidr_blocks" {
 variable "target_cidr_blocks" {
   type = list(string)
 }
+
+variable "execution_role_arn" {
+  type = string
+}
+
+variable "image" {
+  type = string
+}
+
+variable "containerPort" {
+  type = number
+}
+
+variable "hostPort" {
+  type = number
+}
+
+variable "desired_count" {
+  type = number
+}
