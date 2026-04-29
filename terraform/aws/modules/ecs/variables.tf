@@ -25,3 +25,11 @@ variable "hostPort" {
 variable "desired_count" {
   type = number
 }
+
+variable "subnet_ids" {
+  type = list(string)
+}
+
+variable "security_group_ids" {
+  type = list(string)
+}

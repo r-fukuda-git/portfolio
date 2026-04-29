@@ -30,10 +30,6 @@ variable "target_cidr_blocks" {
   type = list(string)
 }
 
-variable "execution_role_arn" {
-  type = string
-}
-
 variable "image" {
   type = string
 }

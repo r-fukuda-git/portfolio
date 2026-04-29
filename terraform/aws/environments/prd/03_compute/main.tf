@@ -53,12 +53,12 @@ module "ecs" {
   desired_count = var.desired_count
 
   # Networkレイヤーから取得
-  subnet_ids = [
-    data.terraform_remote_state.network.outputs.subnet_public_id_1a,
-    data.terraform_remote_state.network.outputs.subnet_public_id_1c
-  ]
-  security_group_ids = [module.ecs_security_group.public_sg_id]
   execution_role_arn = data.terraform_remote_state.iam.outputs.ecs_task_execution_role_arn
+  subnet_ids = [
+    data.terraform_remote_state.network.outputs.subnet_private_id_1a,
+    data.terraform_remote_state.network.outputs.subnet_private_id_1c
+  ]
+  security_group_ids = [module.ecs_security_group.private_ecs_sg_id]
 }
 
 module "ecs_security_group" {
@@ -67,4 +67,7 @@ module "ecs_security_group" {
   project_name       = var.project_name
   source_cidr_blocks = var.source_cidr_blocks
   target_cidr_blocks = var.target_cidr_blocks
+
+  # Networkレイヤーから取得
+  vpc_id = data.terraform_remote_state.network.outputs.vpc_id
 }
