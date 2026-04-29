@@ -86,7 +86,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-resource "aws_security_group_rule" "ingress_allow_http" {
+resource "aws_security_group_rule" "ingress_allow_http_ecs" {
   type              = "ingress"
   from_port         = 80
   to_port           = 80
@@ -96,7 +96,7 @@ resource "aws_security_group_rule" "ingress_allow_http" {
   description       = "Allow http"
 }
 
-resource "aws_security_group_rule" "egress_all" {
+resource "aws_security_group_rule" "egress_all_ecs" {
   type              = "egress"
   from_port         = 0
   to_port           = 0
@@ -104,4 +104,8 @@ resource "aws_security_group_rule" "egress_all" {
   cidr_blocks       = var.target_cidr_blocks
   security_group_id = aws_security_group.ecs_sg.id
   description       = "All"
+}
+
+output "private_ecs_sg_id" {
+  value = aws_security_group.ecs_sg.id
 }
