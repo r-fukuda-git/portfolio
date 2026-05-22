@@ -10,10 +10,6 @@ variable "cidr_block_vpc" {
   type = string
 }
 
-variable "source_cidr_blocks" {
-  type = list(string)
-}
-
 variable "public_subnet_1a" {
   type = string
 }
