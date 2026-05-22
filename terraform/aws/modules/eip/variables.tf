@@ -1,7 +1,7 @@
-variable env {
+variable "env" {
   type = string
 }
 
-variable project_name {
+variable "project_name" {
   type = string
 }
