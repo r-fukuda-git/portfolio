@@ -1,28 +1,28 @@
-variable env {
+variable "env" {
   type = string
 }
 
-variable project_name {
+variable "project_name" {
   type = string
 }
 
-variable ec2_instance_count {
-  type        = number
+variable "ec2_instance_count" {
+  type = number
 }
 
-variable ec2_instance_type {
+variable "ec2_instance_type" {
   type = string
 }
 
-variable subnet_id {
+variable "subnet_id" {
   type = string
 }
 
-variable security_groups {
+variable "security_groups" {
   type = list(string)
 }
 
-variable iam_instance_profile {
+variable "iam_instance_profile" {
   type = string
 }
 

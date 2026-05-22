@@ -59,9 +59,10 @@ module "ecs" {
   env          = var.env
   project_name = var.project_name
 
-  image          = var.image
-  container_port = var.container_port
-  desired_count  = var.desired_count
+  image         = var.image
+  containerPort = var.container_port
+  hostPort      = var.container_port
+  desired_count = var.desired_count
 
   execution_role_arn = data.terraform_remote_state.iam.outputs.ecs_task_execution_role_arn
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
