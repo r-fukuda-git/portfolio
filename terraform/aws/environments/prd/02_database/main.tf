@@ -39,4 +39,7 @@ module "security_group" {
 
   # Networkレイヤーから取得
   vpc_id = data.terraform_remote_state.network.outputs.vpc_id
+
+  create_web_and_db_security_groups  = true
+  create_ecs_and_alb_security_groups = false
 }

@@ -16,42 +16,18 @@ data "terraform_remote_state" "iam" {
   }
 }
 
-module "ec2" {
-  source             = "../../../modules/ec2"
-  env                = var.env
-  project_name       = var.project_name
-  ec2_instance_count = var.ec2_instance_count
-  ec2_instance_type  = var.ec2_instance_type
-  key_path           = var.key_path
+module "security_group" {
+  source = "../../../modules/sg"
 
-  # Networkレイヤーから取得
-  subnet_id               = data.terraform_remote_state.network.outputs.subnet_public_id_1a
-  security_groups         = [module.ec2_security_group.public_sg_id]
-  iam_instance_profile    = data.terraform_remote_state.iam.outputs.iam_instance_profile
-  disable_api_termination = var.disable_api_termination
-}
-
-module "ec2_security_group" {
-  source             = "../../../modules/sg"
   env                = var.env
   project_name       = var.project_name
   source_cidr_blocks = var.source_cidr_blocks
   target_cidr_blocks = var.target_cidr_blocks
-
-  # Networkレイヤーから取得
-  vpc_id = data.terraform_remote_state.network.outputs.vpc_id
-}
-
-module "ecs_security_group" {
-  source             = "../../../modules/sg"
-  env                = var.env
-  project_name       = var.project_name
-  source_cidr_blocks = var.source_cidr_blocks
-  target_cidr_blocks = var.target_cidr_blocks
+  vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
   ecs_container_port = var.container_port
 
-  # Networkレイヤーから取得
-  vpc_id = data.terraform_remote_state.network.outputs.vpc_id
+  create_web_and_db_security_groups  = false
+  create_ecs_and_alb_security_groups = true
 }
 
 module "ecs" {
@@ -76,8 +52,8 @@ module "ecs" {
     data.terraform_remote_state.network.outputs.subnet_public_id_1c
   ]
 
-  security_group_ids     = [module.ecs_security_group.private_ecs_sg_id]
-  alb_security_group_ids = [module.ecs_security_group.alb_sg_id]
+  security_group_ids     = [module.security_group.private_ecs_sg_id]
+  alb_security_group_ids = [module.security_group.alb_sg_id]
 
   standalone_image               = var.standalone_image
   standalone_command             = var.standalone_command
