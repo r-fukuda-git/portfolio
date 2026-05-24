@@ -3,17 +3,17 @@ provider "aws" {
 }
 
 data "terraform_remote_state" "network" {
-  backend = "local"
-  config = {
-    path = "../01_network/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.network
+  })
 }
 
 data "terraform_remote_state" "iam" {
-  backend = "local"
-  config = {
-    path = "../00_iam/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.iam
+  })
 }
 
 module "security_group" {

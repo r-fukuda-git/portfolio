@@ -5,17 +5,17 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 data "terraform_remote_state" "iam" {
-  backend = "local"
-  config = {
-    path = "../00_iam/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.iam
+  })
 }
 
 data "terraform_remote_state" "ecs" {
-  backend = "local"
-  config = {
-    path = "../03_compute_ecs/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.ecs
+  })
 }
 
 locals {

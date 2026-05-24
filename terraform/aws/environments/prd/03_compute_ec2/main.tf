@@ -3,26 +3,26 @@ provider "aws" {
 }
 
 data "terraform_remote_state" "network" {
-  backend = "local"
-  config = {
-    path = "../01_network/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.network
+  })
 }
 
 data "terraform_remote_state" "iam" {
-  backend = "local"
-  config = {
-    path = "../00_iam/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.iam
+  })
 }
 
 data "terraform_remote_state" "database" {
   count = var.use_database_security_groups ? 1 : 0
 
-  backend = "local"
-  config = {
-    path = "../02_database/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.database
+  })
 }
 
 module "security_group" {
