@@ -10,10 +10,6 @@ resource "aws_vpc" "vpc" {
   }
 }
 
-output "vpc_id" {
-  value = aws_vpc.vpc.id
-}
-
 # サブネット設定
 resource "aws_subnet" "public_subnet_1a" {
   vpc_id            = aws_vpc.vpc.id
@@ -57,30 +53,6 @@ resource "aws_subnet" "private_subnet_1c" {
     Name      = "${var.project_name}-${var.env}-private-1c"
     ManagedBy = "terraform"
   }
-}
-
-output "subnet_public_id_1a" {
-  value = aws_subnet.public_subnet_1a.id
-}
-
-output "subnet_public_id_1c" {
-  value = aws_subnet.public_subnet_1c.id
-}
-
-output "subnet_private_id_1a" {
-  value = aws_subnet.private_subnet_1a.id
-}
-
-output "subnet_private_id_1c" {
-  value = aws_subnet.private_subnet_1c.id
-}
-
-output "nat_gateway_id" {
-  value = aws_nat_gateway.nat.id
-}
-
-output "nat_eip_public_ip" {
-  value = aws_eip.nat.public_ip
 }
 
 # IGWの設定

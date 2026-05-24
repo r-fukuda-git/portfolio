@@ -1,7 +1,3 @@
-provider "aws" {
-  region = "ap-northeast-1"
-}
-
 module "networking" {
   source            = "../../../modules/networking"
   env               = var.env
