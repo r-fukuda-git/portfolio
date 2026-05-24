@@ -79,13 +79,16 @@ go run .
 
 ## 3. Terraform（`terraform/aws`）
 
-`modules/` に VPC・サブネット、セキュリティグループ、EC2、IAM、RDS などを分割配置しています。`terraform/aws/modules/eip` に Elastic IP 用モジュールがありますが、現状の `environments/prd` ルートモジュールには未接続です。
+`modules/` に VPC・SG・EC2・ECS・RDS・IAM・CI/CD などを分割配置し、`environments/prd/` を番号付きスタック（独立 state）として管理しています。スタック一覧・依存関係・apply 順は [`terraform/aws/README.md`](terraform/aws/README.md) を参照。
 
-### 本番想定ディレクトリでの操作例
+### 操作例
+
+初回は `bootstrap/` でリモートステート基盤を作成したうえで、各スタックを順に apply します。
 
 ```bash
-cd terraform/aws/enviroments/prd
-terraform init
+# 例: IAM スタック
+cd terraform/aws/environments/prd/00_iam
+terraform init -backend-config=backend.hcl
 terraform plan
 terraform apply
 ```
@@ -98,4 +101,4 @@ terraform apply
 
 - GitHub Actions などでのテスト・静的解析・デプロイの自動化
 - Terraform のステート管理とレビュー運用（ワークスペースやロックの整理）
-- Todo アプリのテスト整備と、`enviroments` ディレクトリ名の整理などリポジトリのメンテナンス
+- Todo アプリのテスト整備と Terraform スタックの運用自動化
