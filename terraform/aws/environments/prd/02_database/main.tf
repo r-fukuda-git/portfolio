@@ -1,7 +1,3 @@
-provider "aws" {
-  region = "ap-northeast-1"
-}
-
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = merge(local.terraform_remote_state_base, {
