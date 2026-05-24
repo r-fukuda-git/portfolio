@@ -29,8 +29,8 @@ resource "aws_ecs_task_definition" "service" {
       essential = true
       portMappings = [
         {
-          containerPort = var.containerPort
-          hostPort      = var.hostPort
+          containerPort = var.container_port
+          hostPort      = var.host_port
           protocol      = "tcp"
         }
       ]
@@ -52,7 +52,7 @@ resource "aws_lb" "this" {
 
 resource "aws_lb_target_group" "service" {
   name        = "${var.project_name}-${var.env}-tg"
-  port        = var.containerPort
+  port        = var.container_port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -99,7 +99,7 @@ resource "aws_ecs_service" "this" {
   load_balancer {
     target_group_arn = aws_lb_target_group.service.arn
     container_name   = "${var.project_name}-${var.env}-service-container"
-    container_port   = var.containerPort
+    container_port   = var.container_port
   }
 
   depends_on = [aws_lb_listener.http]

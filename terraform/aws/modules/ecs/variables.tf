@@ -14,11 +14,11 @@ variable "image" {
   type = string
 }
 
-variable "containerPort" {
+variable "container_port" {
   type = number
 }
 
-variable "hostPort" {
+variable "host_port" {
   type = number
 }
 

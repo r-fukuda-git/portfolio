@@ -18,7 +18,7 @@ variable "target_cidr_blocks" {
   type = list(string)
 }
 
-variable "ecs_container_port" {
+variable "container_port" {
   type        = number
   description = "Container port exposed by ECS tasks behind the ALB"
   default     = 80

@@ -158,8 +158,8 @@ resource "aws_security_group_rule" "ingress_allow_alb_to_ecs" {
   count = var.create_ecs_and_alb_security_groups ? 1 : 0
 
   type                     = "ingress"
-  from_port                = var.ecs_container_port
-  to_port                  = var.ecs_container_port
+  from_port                = var.container_port
+  to_port                  = var.container_port
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.alb[0].id
   security_group_id        = aws_security_group.ecs_sg[0].id
