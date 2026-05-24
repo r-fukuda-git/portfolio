@@ -53,3 +53,20 @@ variable "maintenance_window" {
 variable "backup_retention_period" {
   type = number
 }
+
+variable "skip_final_snapshot" {
+  type = bool
+}
+
+variable "final_snapshot_identifier" {
+  type    = string
+  default = null
+}
+
+variable "copy_tags_to_snapshot" {
+  type = bool
+}
+
+variable "delete_automated_backups" {
+  type = bool
+}

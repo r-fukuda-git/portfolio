@@ -28,6 +28,7 @@ module "rds" {
   backup_window           = var.backup_window
   maintenance_window      = var.maintenance_window
   backup_retention_period = var.backup_retention_period
+
 }
 
 module "security_group" {
