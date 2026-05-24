@@ -8,7 +8,7 @@ variable "project_name" {
 
 variable "repository_suffix" {
   type        = string
-  description = "Suffix shared by CodeCommit and ECR repository names"
+  description = "CodeCommit repository name suffix (ECR suffix is managed in 04_ecr; keep values aligned)"
   default     = "app"
 }
 
@@ -50,11 +50,6 @@ variable "codebuild_image" {
 variable "codebuild_timeout" {
   type    = number
   default = 20
-}
-
-variable "ecr_scan_on_push" {
-  type    = bool
-  default = true
 }
 
 variable "enable_pipeline_notifications" {

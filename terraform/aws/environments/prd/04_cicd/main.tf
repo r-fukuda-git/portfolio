@@ -14,6 +14,13 @@ data "terraform_remote_state" "ecs" {
   })
 }
 
+data "terraform_remote_state" "ecr" {
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.ecr
+  })
+}
+
 locals {
   name_prefix    = "${var.project_name}-${var.env}"
   container_name = "${var.project_name}-${var.env}-service-container"
@@ -63,15 +70,6 @@ module "codecommit" {
   description     = var.codecommit_description
 }
 
-module "ecr" {
-  source = "../../../modules/ecr"
-
-  env              = var.env
-  project_name     = var.project_name
-  repository_suffix = var.repository_suffix
-  scan_on_push     = var.ecr_scan_on_push
-}
-
 module "codebuild" {
   source = "../../../modules/codebuild"
 
@@ -79,7 +77,7 @@ module "codebuild" {
   project_name = var.project_name
 
   artifact_bucket_arn = aws_s3_bucket.pipeline_artifacts.arn
-  ecr_repository_name = module.ecr.repository_name
+  ecr_repository_name = data.terraform_remote_state.ecr.outputs.ecr_repository_name
   container_name      = local.container_name
   dockerfile_path     = var.dockerfile_path
   build_context       = var.build_context
