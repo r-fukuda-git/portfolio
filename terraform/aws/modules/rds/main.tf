@@ -35,32 +35,6 @@ resource "aws_db_option_group" "option_group" {
   }
 }
 
-// パスワード生成
-resource "random_password" "password" {
-  length           = 16
-  special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
-}
-
-resource "aws_secretsmanager_secret" "db_password" {
-  name        = "${var.project_name}-${var.env}-rds-password"
-  description = "RDS password for ${var.project_name}"
-
-  recovery_window_in_days = 0
-
-  tags = {
-    Name = "${var.project_name}-${var.env}-rds-password"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = aws_secretsmanager_secret.db_password.id
-  secret_string = jsonencode({
-    username = var.username
-    password = random_password.password.result
-  })
-}
-
 resource "aws_db_instance" "instance" {
   identifier          = "${var.project_name}-${var.env}-rds"
   engine              = var.engine
@@ -73,15 +47,19 @@ resource "aws_db_instance" "instance" {
 
   db_name  = var.db_name
   username = var.username
-  // manage_master_user_password = true
-  password = random_password.password.result
+
+  manage_master_user_password   = true
+  master_user_secret_kms_key_id = var.master_user_secret_kms_key_id
 
   db_subnet_group_name = aws_db_subnet_group.subnet_group.name
   parameter_group_name = aws_db_parameter_group.parameter_group.name
   option_group_name    = aws_db_option_group.option_group.name
 
   vpc_security_group_ids     = var.vpc_security_group_ids
-  skip_final_snapshot        = true
+  skip_final_snapshot        = var.skip_final_snapshot
+  final_snapshot_identifier  = var.skip_final_snapshot ? null : coalesce(var.final_snapshot_identifier, "${var.project_name}-${var.env}-rds-final")
+  copy_tags_to_snapshot      = var.copy_tags_to_snapshot
+  delete_automated_backups   = var.delete_automated_backups
   auto_minor_version_upgrade = false
 
   multi_az                = var.multi_az
@@ -90,13 +68,9 @@ resource "aws_db_instance" "instance" {
   maintenance_window      = var.maintenance_window
 
   enabled_cloudwatch_logs_exports = ["error", "general", "slowquery"]
-  performance_insights_enabled    = false // instance sizaによる
+  performance_insights_enabled    = false // instance sizeによる
 
   apply_immediately = true
-
-  lifecycle {
-    ignore_changes = [password]
-  }
 
   tags = {
     Name = "${var.project_name}-${var.env}-rds"
@@ -104,7 +78,15 @@ resource "aws_db_instance" "instance" {
 }
 
 output "db_secret_arn" {
-  value = aws_secretsmanager_secret.db_password.arn
+  value = aws_db_instance.instance.master_user_secret[0].secret_arn
+}
+
+output "db_instance_arn" {
+  value = aws_db_instance.instance.arn
+}
+
+output "db_instance_endpoint" {
+  value = aws_db_instance.instance.endpoint
 }
 
 
