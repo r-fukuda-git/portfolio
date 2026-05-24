@@ -6,11 +6,10 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 6.42.0, < 7.0.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.8.0, < 4.0.0"
-    }
   }
 
-  backend "s3" {}
+  # Bootstrap は初回のみ local。S3 作成後に各 stack を S3 backend へ移行する。
+  backend "local" {
+    path = "terraform.tfstate"
+  }
 }

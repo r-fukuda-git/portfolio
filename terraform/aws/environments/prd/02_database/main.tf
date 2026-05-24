@@ -3,10 +3,10 @@ provider "aws" {
 }
 
 data "terraform_remote_state" "network" {
-  backend = "local"
-  config = {
-    path = "../01_network/terraform.tfstate"
-  }
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.network
+  })
 }
 
 module "rds" {
