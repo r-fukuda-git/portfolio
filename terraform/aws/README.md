@@ -21,7 +21,7 @@
 | 03_compute_ec2 | `environments/prd/03_compute_ec2/` | EC2 | `00_iam`, `01_network`, （任意）`02_database` |
 | 03_compute_ecs | `environments/prd/03_compute_ecs/` | ECS（Fargate）+ ALB、ECS/ALB 用 SG | `00_iam`, `01_network` |
 | 04_ecr | `environments/prd/04_ecr/` | ECR リポジトリ（イメージ push 先） | なし |
-| 04_cicd | `environments/prd/04_cicd/` | CodeCommit、CodeBuild、CodePipeline | `00_iam`, `03_compute_ecs`, `04_ecr` |
+| 05_cicd | `environments/prd/05_cicd/` | CodeCommit、CodeBuild、CodePipeline | `00_iam`, `03_compute_ecs`, `04_ecr` |
 
 `modules/eip` は Elastic IP 用モジュールだが、現状どのスタックからも未参照。
 
@@ -36,7 +36,7 @@ flowchart TD
   ec2[03_compute_ec2]
   ecs[03_compute_ecs]
   ecr[04_ecr]
-  cicd[04_cicd]
+  cicd[05_cicd]
 
   bootstrap -.->|state 基盤| iam
   bootstrap -.-> network
@@ -64,18 +64,31 @@ flowchart TD
 3. **02_database**（`01_network` 完了後）
 4. **03_compute_ec2** と **03_compute_ecs**（`00_iam` + `01_network` 完了後。相互依存なし。並列可）
    - EC2 で `use_database_security_groups = true` の場合は **02_database** も先に apply すること
-5. **04_ecr**（他スタックへの依存なし。`04_cicd` より先に apply）
-6. **04_cicd**（`03_compute_ecs` と `04_ecr` 完了後）
+5. **04_ecr**（他スタックへの依存なし。`05_cicd` より先に apply）
+6. **05_cicd**（`03_compute_ecs` と `04_ecr` 完了後）
 
 destroy は上記の逆順。
 
-### 既存 `04_cicd` に ECR が含まれている場合
+### 既存 `04_cicd` を `05_cicd` にリネームする場合（state 移行）
 
-1. `04_ecr` を apply する前に、`04_cicd` から ECR リソースを state から外す（`terraform state rm` で `module.ecr` 配下）
+S3 上の state キーを移し、`backend.hcl` の `key` を `prd/05_cicd/terraform.tfstate` に更新してから再 init する。
+
+```bash
+aws s3 mv \
+  s3://<terraform_state_bucket>/prd/04_cicd/terraform.tfstate \
+  s3://<terraform_state_bucket>/prd/05_cicd/terraform.tfstate
+
+cd terraform/aws/environments/prd/05_cicd
+terraform init -backend-config=backend.hcl -reconfigure -migrate-state
+```
+
+### 旧 `04_cicd` に ECR が含まれている場合
+
+1. `04_ecr` を apply する前に、旧 CI/CD スタックから ECR リソースを state から外す（`terraform state rm` で `module.ecr` 配下）
 2. `04_ecr` を apply（既存リポジトリと同名の場合は `terraform import` で取り込み）
-3. `04_cicd` を apply（ECR は `04_ecr` の remote state 参照に切り替わる）
+3. `05_cicd` を apply（ECR は `04_ecr` の remote state 参照に切り替わる）
 
-`repository_suffix` は `04_ecr` と `04_cicd` で同じ値に揃えること。
+`repository_suffix` は `04_ecr` と `05_cicd` で同じ値に揃えること。
 
 ## 操作例
 
@@ -123,5 +136,5 @@ Terraform 変数は `snake_case` に統一する。AWS API が camelCase を要�
 | `ecs` | ECS クラスター、Fargate サービス、ALB、スタンドアロンタスク |
 | `rds` | RDS PostgreSQL |
 | `ecr` | ECR リポジトリ（`04_ecr` スタック） |
-| `codecommit` / `codebuild` / `codepipeline` | CI/CD パイプライン（`04_cicd` スタック） |
+| `codecommit` / `codebuild` / `codepipeline` | CI/CD パイプライン（`05_cicd` スタック） |
 | `eip` | Elastic IP（未接続） |
