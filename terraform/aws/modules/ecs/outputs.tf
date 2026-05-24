@@ -35,5 +35,5 @@ output "target_group_arn" {
 }
 
 output "standalone_schedule_enabled" {
-  value = var.enable_standalone_schedule
+  value = var.standalone_schedule_enabled
 }

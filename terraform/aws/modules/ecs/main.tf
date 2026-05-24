@@ -18,19 +18,19 @@ resource "aws_ecs_task_definition" "service" {
   family                   = "${var.project_name}-${var.env}-service-task"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = var.task_cpu
-  memory                   = var.task_memory
+  cpu                      = var.service_task_cpu
+  memory                   = var.service_task_memory
   execution_role_arn       = var.execution_role_arn
 
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-${var.env}-service-container"
-      image     = var.image
+      image     = var.service_image
       essential = true
       portMappings = [
         {
-          containerPort = var.container_port
-          hostPort      = var.host_port
+          containerPort = var.service_container_port
+          hostPort      = var.service_host_port
           protocol      = "tcp"
         }
       ]
@@ -52,7 +52,7 @@ resource "aws_lb" "this" {
 
 resource "aws_lb_target_group" "service" {
   name        = "${var.project_name}-${var.env}-tg"
-  port        = var.container_port
+  port        = var.service_container_port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -87,7 +87,7 @@ resource "aws_ecs_service" "this" {
   name            = "${var.project_name}-${var.env}-service"
   cluster         = aws_ecs_cluster.this.id
   task_definition = aws_ecs_task_definition.service.arn
-  desired_count   = var.desired_count
+  desired_count   = var.service_desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -99,7 +99,7 @@ resource "aws_ecs_service" "this" {
   load_balancer {
     target_group_arn = aws_lb_target_group.service.arn
     container_name   = "${var.project_name}-${var.env}-service-container"
-    container_port   = var.container_port
+    container_port   = var.service_container_port
   }
 
   depends_on = [aws_lb_listener.http]
@@ -120,7 +120,7 @@ resource "aws_ecs_task_definition" "standalone" {
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-${var.env}-standalone-container"
-      image     = var.standalone_image != "" ? var.standalone_image : var.image
+      image     = var.standalone_image != "" ? var.standalone_image : var.service_image
       essential = true
       command   = var.standalone_command
     }
@@ -128,7 +128,7 @@ resource "aws_ecs_task_definition" "standalone" {
 }
 
 data "aws_iam_policy_document" "events_assume" {
-  count = var.enable_standalone_schedule ? 1 : 0
+  count = var.standalone_schedule_enabled ? 1 : 0
 
   statement {
     actions = ["sts:AssumeRole"]
@@ -140,7 +140,7 @@ data "aws_iam_policy_document" "events_assume" {
 }
 
 resource "aws_iam_role" "events_ecs" {
-  count              = var.enable_standalone_schedule ? 1 : 0
+  count              = var.standalone_schedule_enabled ? 1 : 0
   name               = "${var.project_name}-${var.env}-events-ecs-role"
   assume_role_policy = data.aws_iam_policy_document.events_assume[0].json
 
@@ -150,7 +150,7 @@ resource "aws_iam_role" "events_ecs" {
 }
 
 data "aws_iam_policy_document" "events_run_task" {
-  count = var.enable_standalone_schedule ? 1 : 0
+  count = var.standalone_schedule_enabled ? 1 : 0
 
   statement {
     sid    = "RunStandaloneTask"
@@ -186,21 +186,21 @@ data "aws_iam_policy_document" "events_run_task" {
 }
 
 resource "aws_iam_role_policy" "events_ecs" {
-  count  = var.enable_standalone_schedule ? 1 : 0
+  count  = var.standalone_schedule_enabled ? 1 : 0
   name   = "${var.project_name}-${var.env}-events-ecs-policy"
   role   = aws_iam_role.events_ecs[0].id
   policy = data.aws_iam_policy_document.events_run_task[0].json
 }
 
 resource "aws_cloudwatch_event_rule" "standalone" {
-  count               = var.enable_standalone_schedule ? 1 : 0
+  count               = var.standalone_schedule_enabled ? 1 : 0
   name                = "${var.project_name}-${var.env}-standalone-schedule"
   description         = "Run standalone ECS task on a schedule"
   schedule_expression = var.standalone_schedule_expression
 }
 
 resource "aws_cloudwatch_event_target" "standalone" {
-  count     = var.enable_standalone_schedule ? 1 : 0
+  count     = var.standalone_schedule_enabled ? 1 : 0
   rule      = aws_cloudwatch_event_rule.standalone[0].name
   target_id = "standalone-ecs-task"
   arn       = aws_ecs_cluster.this.arn

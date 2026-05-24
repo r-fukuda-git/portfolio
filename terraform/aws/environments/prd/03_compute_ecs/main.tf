@@ -20,7 +20,7 @@ module "security_group" {
   source_cidr_blocks = var.source_cidr_blocks
   target_cidr_blocks = var.target_cidr_blocks
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
-  container_port = var.container_port
+  container_port     = var.service_container_port
 
   create_web_and_db_security_groups  = false
   create_ecs_and_alb_security_groups = true
@@ -31,10 +31,10 @@ module "ecs" {
   env          = var.env
   project_name = var.project_name
 
-  image          = var.image
-  container_port = var.container_port
-  host_port      = var.container_port
-  desired_count = var.desired_count
+  service_image          = var.service_image
+  service_container_port = var.service_container_port
+  service_host_port      = var.service_container_port
+  service_desired_count  = var.service_desired_count
 
   execution_role_arn = data.terraform_remote_state.iam.outputs.ecs_task_execution_role_arn
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
@@ -53,6 +53,6 @@ module "ecs" {
 
   standalone_image               = var.standalone_image
   standalone_command             = var.standalone_command
-  enable_standalone_schedule     = var.enable_standalone_schedule
+  standalone_schedule_enabled    = var.standalone_schedule_enabled
   standalone_schedule_expression = var.standalone_schedule_expression
 }
