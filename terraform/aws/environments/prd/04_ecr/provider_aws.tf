@@ -1,0 +1,1 @@
+../../../shared/provider_aws.tf

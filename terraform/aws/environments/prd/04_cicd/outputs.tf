@@ -10,14 +10,6 @@ output "codecommit_clone_url_ssh" {
   value = module.codecommit.clone_url_ssh
 }
 
-output "ecr_repository_name" {
-  value = module.ecr.repository_name
-}
-
-output "ecr_repository_url" {
-  value = module.ecr.repository_url
-}
-
 output "codebuild_project_name" {
   value = module.codebuild.project_name
 }
