@@ -55,4 +55,6 @@ module "ecs" {
   standalone_command             = var.standalone_command
   standalone_schedule_enabled    = var.standalone_schedule_enabled
   standalone_schedule_expression = var.standalone_schedule_expression
+
+  health_check_path = "/health"
 }
