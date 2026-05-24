@@ -14,15 +14,15 @@ variable "target_cidr_blocks" {
   type = list(string)
 }
 
-variable "image" {
+variable "service_image" {
   type = string
 }
 
-variable "container_port" {
+variable "service_container_port" {
   type = number
 }
 
-variable "desired_count" {
+variable "service_desired_count" {
   type = number
 }
 
@@ -36,7 +36,7 @@ variable "standalone_command" {
   default = ["sh", "-c", "echo standalone task completed"]
 }
 
-variable "enable_standalone_schedule" {
+variable "standalone_schedule_enabled" {
   type    = bool
   default = false
 }

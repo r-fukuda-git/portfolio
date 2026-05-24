@@ -10,19 +10,19 @@ variable "execution_role_arn" {
   type = string
 }
 
-variable "image" {
+variable "service_image" {
   type = string
 }
 
-variable "container_port" {
+variable "service_container_port" {
   type = number
 }
 
-variable "host_port" {
+variable "service_host_port" {
   type = number
 }
 
-variable "desired_count" {
+variable "service_desired_count" {
   type = number
 }
 
@@ -54,19 +54,19 @@ variable "health_check_path" {
   default     = "/"
 }
 
-variable "task_cpu" {
+variable "service_task_cpu" {
   type    = number
   default = 256
 }
 
-variable "task_memory" {
+variable "service_task_memory" {
   type    = number
   default = 512
 }
 
 variable "standalone_image" {
   type        = string
-  description = "Container image for standalone tasks; empty string reuses var.image"
+  description = "Container image for standalone tasks; empty string reuses var.service_image"
   default     = ""
 }
 
@@ -86,7 +86,7 @@ variable "standalone_task_memory" {
   default = 512
 }
 
-variable "enable_standalone_schedule" {
+variable "standalone_schedule_enabled" {
   type        = bool
   description = "When true, EventBridge runs the standalone task on a schedule"
   default     = false
