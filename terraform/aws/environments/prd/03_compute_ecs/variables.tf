@@ -14,8 +14,10 @@ variable "target_cidr_blocks" {
   type = list(string)
 }
 
-variable "service_image" {
-  type = string
+variable "service_image_tag" {
+  type        = string
+  description = "ECR image tag for the ECS service (must exist in 04_ecr repository)"
+  default     = "latest"
 }
 
 variable "service_container_port" {
