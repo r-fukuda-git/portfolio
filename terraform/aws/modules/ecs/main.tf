@@ -26,11 +26,22 @@ resource "aws_ecs_task_definition" "service" {
   memory                   = var.service_task_memory
   execution_role_arn       = var.execution_role_arn
 
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-${var.env}-service-container"
       image     = local.service_image
       essential = true
+      environment = [
+        {
+          name  = "PORT"
+          value = tostring(var.service_container_port)
+        }
+      ]
       portMappings = [
         {
           containerPort = var.service_container_port

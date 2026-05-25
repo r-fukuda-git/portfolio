@@ -8,7 +8,7 @@ variable "project_name" {
 
 variable "repository_suffix" {
   type        = string
-  description = "CodeCommit repository name suffix (ECR suffix is managed in 04_ecr; keep values aligned)"
+  description = "CodeCommit repository name suffix (ECR suffix is managed in 03_ecr; keep values aligned)"
   default     = "app"
 }
 

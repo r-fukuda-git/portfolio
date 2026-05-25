@@ -12,7 +12,7 @@ variable "execution_role_arn" {
 
 variable "ecr_repository_url" {
   type        = string
-  description = "ECR repository URL from 04_ecr remote state (image URI base)"
+  description = "ECR repository URL from 03_ecr remote state (image URI base)"
 }
 
 variable "service_image_tag" {

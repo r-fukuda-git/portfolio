@@ -20,9 +20,9 @@
 | 01_network_nat | `environments/prd/01_network_nat/` | NAT Gateway、プライベート RT への 0.0.0.0/0（任意） | `01_network` |
 | 02_database | `environments/prd/02_database/` | RDS、web/db 用 SG | `01_network` |
 | 03_compute_ec2 | `environments/prd/03_compute_ec2/` | EC2 | `00_iam`, `01_network`, （任意）`02_database` |
-| 03_compute_ecs | `environments/prd/03_compute_ecs/` | ECS（Fargate）+ ALB、ECS/ALB 用 SG | `00_iam`, `01_network` |
-| 04_ecr | `environments/prd/04_ecr/` | ECR リポジトリ（イメージ push 先） | なし |
-| 05_cicd | `environments/prd/05_cicd/` | CodeCommit、CodeBuild、CodePipeline | `00_iam`, `03_compute_ecs`, `04_ecr` |
+| 03_ecr | `environments/prd/03_ecr/` | ECR リポジトリ（イメージ push 先） | なし |
+| 04_compute_ecs | `environments/prd/04_compute_ecs/` | ECS（Fargate）+ ALB、ECS/ALB 用 SG | `00_iam`, `01_network`, `03_ecr` |
+| 05_cicd | `environments/prd/05_cicd/` | CodeCommit、CodeBuild、CodePipeline | `00_iam`, `04_compute_ecs`, `03_ecr` |
 
 `modules/eip` は Elastic IP 用モジュールだが、現状どのスタックからも未参照。
 
@@ -36,8 +36,8 @@ flowchart TD
   network_nat[01_network_nat]
   database[02_database]
   ec2[03_compute_ec2]
-  ecs[03_compute_ecs]
-  ecr[04_ecr]
+  ecr[03_ecr]
+  ecs[04_compute_ecs]
   cicd[05_cicd]
 
   bootstrap -.->|state 基盤| iam
@@ -56,6 +56,7 @@ flowchart TD
   iam --> ecs
   iam --> cicd
   database -->|use_database_security_groups=true 時| ec2
+  ecr --> ecs
   ecr --> cicd
   ecs --> cicd
 ```
@@ -66,10 +67,10 @@ flowchart TD
 2. **00_iam** と **01_network**（相互依存なし。並列可）
 3. **01_network_nat**（プライベートからインターネット egress が必要なときのみ。`01_network` 完了後）
 4. **02_database**（`01_network` 完了後）
-5. **03_compute_ec2** と **03_compute_ecs**（`00_iam` + `01_network` 完了後。相互依存なし。並列可）
+5. **03_compute_ec2** と **03_ecr**（`00_iam` + `01_network` 完了後。EC2 と ECR は相互依存なし。並列可）
    - EC2 で `use_database_security_groups = true` の場合は **02_database** も先に apply すること
-6. **04_ecr**（他スタックへの依存なし。`05_cicd` より先に apply）
-7. **05_cicd**（`03_compute_ecs` と `04_ecr` 完了後）
+6. **04_compute_ecs**（`00_iam` + `01_network` + **03_ecr** 完了後。イメージ tag が ECR に存在すること）
+7. **05_cicd**（`04_compute_ecs` と `03_ecr` 完了後）
 
 destroy は上記の逆順。
 
@@ -88,11 +89,33 @@ terraform init -backend-config=backend.hcl -reconfigure -migrate-state
 
 ### 旧 `04_cicd` に ECR が含まれている場合
 
-1. `04_ecr` を apply する前に、旧 CI/CD スタックから ECR リソースを state から外す（`terraform state rm` で `module.ecr` 配下）
-2. `04_ecr` を apply（既存リポジトリと同名の場合は `terraform import` で取り込み）
-3. `05_cicd` を apply（ECR は `04_ecr` の remote state 参照に切り替わる）
+1. `03_ecr` を apply する前に、旧 CI/CD スタックから ECR リソースを state から外す（`terraform state rm` で `module.ecr` 配下）
+2. `03_ecr` を apply（既存リポジトリと同名の場合は `terraform import` で取り込み）
+3. `05_cicd` を apply（ECR は `03_ecr` の remote state 参照に切り替わる）
 
-`repository_suffix` は `04_ecr` と `05_cicd` で同じ値に揃えること。
+`repository_suffix` は `03_ecr` と `05_cicd` で同じ値に揃えること。
+
+### 既存 `03_compute_ecs` / `04_ecr` を `04_compute_ecs` / `03_ecr` にリネームする場合（state 移行）
+
+S3 上の state キーを移し、各スタックの `backend.hcl` を更新してから再 init する。
+
+```bash
+aws s3 mv \
+  s3://<terraform_state_bucket>/prd/04_ecr/terraform.tfstate \
+  s3://<terraform_state_bucket>/prd/03_ecr/terraform.tfstate
+aws s3 mv \
+  s3://<terraform_state_bucket>/prd/03_compute_ecs/terraform.tfstate \
+  s3://<terraform_state_bucket>/prd/04_compute_ecs/terraform.tfstate
+
+cd terraform/aws/environments/prd/03_ecr
+terraform init -backend-config=backend.hcl -reconfigure -migrate-state
+cd ../04_compute_ecs
+terraform init -backend-config=backend.hcl -reconfigure -migrate-state
+cd ../05_cicd
+terraform init -backend-config=backend.hcl -reconfigure
+```
+
+`04_compute_ecs` と `05_cicd` は remote state のキー参照が変わるため、上記のあと `terraform plan` で差分がないことを確認する。
 
 ## 操作例
 
@@ -140,6 +163,6 @@ Terraform 変数は `snake_case` に統一する。AWS API が camelCase を要�
 | `ec2` | EC2 インスタンス |
 | `ecs` | ECS クラスター、Fargate サービス、ALB、スタンドアロンタスク |
 | `rds` | RDS PostgreSQL |
-| `ecr` | ECR リポジトリ（`04_ecr` スタック） |
+| `ecr` | ECR リポジトリ（`03_ecr` スタック） |
 | `codecommit` / `codebuild` / `codepipeline` | CI/CD パイプライン（`05_cicd` スタック） |
 | `eip` | Elastic IP（未接続） |
