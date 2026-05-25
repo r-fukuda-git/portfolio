@@ -22,7 +22,7 @@ locals {
 
   terraform_state_key = {
     iam = "${var.terraform_state_key_prefix}/00_iam/terraform.tfstate"
-    ecs = "${var.terraform_state_key_prefix}/03_compute_ecs/terraform.tfstate"
-    ecr = "${var.terraform_state_key_prefix}/04_ecr/terraform.tfstate"
+    ecs = "${var.terraform_state_key_prefix}/04_compute_ecs/terraform.tfstate"
+    ecr = "${var.terraform_state_key_prefix}/03_ecr/terraform.tfstate"
   }
 }

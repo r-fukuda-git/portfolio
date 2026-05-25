@@ -59,6 +59,8 @@ module "ecs" {
   security_group_ids     = [module.security_group.private_ecs_sg_id]
   alb_security_group_ids = [module.security_group.alb_sg_id]
 
+  health_check_path = var.health_check_path
+
   standalone_image               = var.standalone_image
   standalone_command             = var.standalone_command
   standalone_schedule_enabled    = var.standalone_schedule_enabled

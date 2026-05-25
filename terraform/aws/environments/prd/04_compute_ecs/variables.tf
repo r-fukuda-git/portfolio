@@ -16,7 +16,7 @@ variable "target_cidr_blocks" {
 
 variable "service_image_tag" {
   type        = string
-  description = "ECR image tag for the ECS service (must exist in 04_ecr repository)"
+  description = "ECR image tag for the ECS service (must exist in 03_ecr repository)"
   default     = "latest"
 }
 
@@ -26,6 +26,12 @@ variable "service_container_port" {
 
 variable "service_desired_count" {
   type = number
+}
+
+variable "health_check_path" {
+  type        = string
+  description = "ALB target group health check path (cicd-demo: /health)"
+  default     = "/health"
 }
 
 variable "standalone_image" {
