@@ -63,30 +63,6 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# NAT Gateway（public 1a に配置。コスト優先の単一 NAT。AZ ごとに増やす場合は 1c 用を追加）
-resource "aws_eip" "nat" {
-  domain = "vpc"
-
-  tags = {
-    Name      = "${var.project_name}-${var.env}-nat-eip"
-    ManagedBy = "terraform"
-  }
-
-  depends_on = [aws_internet_gateway.igw]
-}
-
-resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_subnet_1a.id
-
-  tags = {
-    Name      = "${var.project_name}-${var.env}-nat-1a"
-    ManagedBy = "terraform"
-  }
-
-  depends_on = [aws_internet_gateway.igw]
-}
-
 # ルートテーブルの設定
 resource "aws_route_table" "public_route" {
   vpc_id = aws_vpc.vpc.id
@@ -106,12 +82,6 @@ resource "aws_route_table" "private_route" {
   tags = {
     Name = "${var.project_name}-${var.env}-private-rt"
   }
-}
-
-resource "aws_route" "private_nat" {
-  route_table_id         = aws_route_table.private_route.id
-  destination_cidr_block = var.route_cidr_block
-  nat_gateway_id         = aws_nat_gateway.nat.id
 }
 
 # ルートテーブルとサブネットの関連付け設定
