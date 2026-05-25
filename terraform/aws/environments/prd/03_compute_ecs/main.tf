@@ -12,6 +12,13 @@ data "terraform_remote_state" "iam" {
   })
 }
 
+data "terraform_remote_state" "ecr" {
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.ecr
+  })
+}
+
 module "security_group" {
   source = "../../../modules/sg"
 
@@ -31,7 +38,8 @@ module "ecs" {
   env          = var.env
   project_name = var.project_name
 
-  service_image          = var.service_image
+  ecr_repository_url     = data.terraform_remote_state.ecr.outputs.ecr_repository_url
+  service_image_tag      = var.service_image_tag
   service_container_port = var.service_container_port
   service_host_port      = var.service_container_port
   service_desired_count  = var.service_desired_count

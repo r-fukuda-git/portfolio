@@ -10,8 +10,15 @@ variable "execution_role_arn" {
   type = string
 }
 
-variable "service_image" {
-  type = string
+variable "ecr_repository_url" {
+  type        = string
+  description = "ECR repository URL from 04_ecr remote state (image URI base)"
+}
+
+variable "service_image_tag" {
+  type        = string
+  description = "Image tag in the ECR repository (CodeBuild pushes :latest)"
+  default     = "latest"
 }
 
 variable "service_container_port" {
@@ -66,7 +73,7 @@ variable "service_task_memory" {
 
 variable "standalone_image" {
   type        = string
-  description = "Container image for standalone tasks; empty string reuses var.service_image"
+  description = "Container image for standalone tasks; empty string reuses the ECR service image"
   default     = ""
 }
 

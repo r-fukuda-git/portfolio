@@ -1,3 +1,7 @@
+locals {
+  service_image = "${var.ecr_repository_url}:${var.service_image_tag}"
+}
+
 # クラスター
 resource "aws_ecs_cluster" "this" {
   name = "${var.project_name}-${var.env}-ecs-cluster"
@@ -25,7 +29,7 @@ resource "aws_ecs_task_definition" "service" {
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-${var.env}-service-container"
-      image     = var.service_image
+      image     = local.service_image
       essential = true
       portMappings = [
         {
@@ -120,7 +124,7 @@ resource "aws_ecs_task_definition" "standalone" {
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-${var.env}-standalone-container"
-      image     = var.standalone_image != "" ? var.standalone_image : var.service_image
+      image     = var.standalone_image != "" ? var.standalone_image : local.service_image
       essential = true
       command   = var.standalone_command
     }
