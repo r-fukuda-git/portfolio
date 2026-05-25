@@ -16,7 +16,8 @@
 |----------|------|--------------|------------------------|
 | bootstrap | `bootstrap/` | S3（state）、DynamoDB（lock） | なし |
 | 00_iam | `environments/prd/00_iam/` | EC2 用 IAM ロール、ECS タスク実行ロール | なし |
-| 01_network | `environments/prd/01_network/` | VPC、サブネット、NAT、ルート | なし |
+| 01_network | `environments/prd/01_network/` | VPC、サブネット、IGW、ルート（プライベートは NAT なし） | なし |
+| 01_network_nat | `environments/prd/01_network_nat/` | NAT Gateway、プライベート RT への 0.0.0.0/0（任意） | `01_network` |
 | 02_database | `environments/prd/02_database/` | RDS、web/db 用 SG | `01_network` |
 | 03_compute_ec2 | `environments/prd/03_compute_ec2/` | EC2 | `00_iam`, `01_network`, （任意）`02_database` |
 | 03_compute_ecs | `environments/prd/03_compute_ecs/` | ECS（Fargate）+ ALB、ECS/ALB 用 SG | `00_iam`, `01_network` |
@@ -32,6 +33,7 @@ flowchart TD
   bootstrap[bootstrap]
   iam[00_iam]
   network[01_network]
+  network_nat[01_network_nat]
   database[02_database]
   ec2[03_compute_ec2]
   ecs[03_compute_ecs]
@@ -46,6 +48,7 @@ flowchart TD
   bootstrap -.-> ecr
   bootstrap -.-> cicd
 
+  network --> network_nat
   network --> database
   network --> ec2
   network --> ecs
@@ -61,11 +64,12 @@ flowchart TD
 
 1. **bootstrap**（アカウント初回のみ）
 2. **00_iam** と **01_network**（相互依存なし。並列可）
-3. **02_database**（`01_network` 完了後）
-4. **03_compute_ec2** と **03_compute_ecs**（`00_iam` + `01_network` 完了後。相互依存なし。並列可）
+3. **01_network_nat**（プライベートからインターネット egress が必要なときのみ。`01_network` 完了後）
+4. **02_database**（`01_network` 完了後）
+5. **03_compute_ec2** と **03_compute_ecs**（`00_iam` + `01_network` 完了後。相互依存なし。並列可）
    - EC2 で `use_database_security_groups = true` の場合は **02_database** も先に apply すること
-5. **04_ecr**（他スタックへの依存なし。`05_cicd` より先に apply）
-6. **05_cicd**（`03_compute_ecs` と `04_ecr` 完了後）
+6. **04_ecr**（他スタックへの依存なし。`05_cicd` より先に apply）
+7. **05_cicd**（`03_compute_ecs` と `04_ecr` 完了後）
 
 destroy は上記の逆順。
 
@@ -129,7 +133,8 @@ Terraform 変数は `snake_case` に統一する。AWS API が camelCase を要�
 
 | モジュール | 用途 |
 |------------|------|
-| `networking` | VPC、サブネット、IGW、NAT |
+| `networking` | VPC、サブネット、IGW、ルート |
+| `nat_gateway` | NAT Gateway、プライベート RT へのデフォルトルート |
 | `sg` | EC2/RDS 用 web・db SG、ECS/ALB 用 SG |
 | `iam` | EC2 インスタンスプロファイル、ECS タスク実行ロール |
 | `ec2` | EC2 インスタンス |
