@@ -6,64 +6,40 @@ variable "project_name" {
   type = string
 }
 
-variable "repository_suffix" {
+variable "github_owner" {
   type        = string
-  description = "CodeCommit repository name suffix (ECR suffix is managed in 03_ecr; keep values aligned)"
-  default     = "app"
+  description = "GitHub organization or user (OIDC subject repo owner)"
 }
 
-variable "codecommit_description" {
+variable "github_repository" {
+  type        = string
+  description = "GitHub repository name"
+}
+
+variable "dev_branch" {
   type    = string
-  default = "Application source repository for ECS deployment"
+  default = "dev"
 }
 
-variable "source_branch" {
+variable "main_branch" {
   type    = string
   default = "main"
 }
 
-variable "poll_for_source_changes" {
-  type    = bool
-  default = true
+variable "go_module_path" {
+  type        = string
+  description = "Path to Go module relative to repository root (used in workflow documentation)"
+  default     = "golang/cicd-demo"
 }
 
 variable "dockerfile_path" {
-  type    = string
-  default = "Dockerfile"
+  type        = string
+  description = "Dockerfile path relative to repository root (used in workflow documentation)"
+  default     = "golang/cicd-demo/Dockerfile"
 }
 
 variable "build_context" {
-  type    = string
-  default = "."
-}
-
-variable "codebuild_compute_type" {
-  type    = string
-  default = "BUILD_GENERAL1_SMALL"
-}
-
-variable "codebuild_image" {
-  type    = string
-  default = "aws/codebuild/standard:7.0"
-}
-
-variable "codebuild_timeout" {
-  type    = number
-  default = 20
-}
-
-variable "enable_pipeline_notifications" {
-  type    = bool
-  default = false
-}
-
-variable "notification_target_arn" {
-  type    = string
-  default = null
-  nullable = true
-}
-
-variable "notification_target_type" {
-  type    = string
-  default = "SNS"
+  type        = string
+  description = "Docker build context relative to repository root"
+  default     = "golang/cicd-demo"
 }

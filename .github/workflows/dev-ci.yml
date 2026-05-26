@@ -1,0 +1,37 @@
+name: dev CI
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.22"
+  GO_MODULE_PATH: golang/cicd-demo
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Go test
+        working-directory: ${{ env.GO_MODULE_PATH }}
+        run: go test ./...
+
+      - name: Go build
+        working-directory: ${{ env.GO_MODULE_PATH }}
+        run: go build -o /tmp/server ./cmd
