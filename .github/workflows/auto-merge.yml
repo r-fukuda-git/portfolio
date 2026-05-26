@@ -16,23 +16,33 @@ jobs:
       statuses: read # 追加：コミットのステータスを読み取る権限
       actions: read # 追加：Actionsの動作状況を読み取る権限
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Create PR, Wait for CI, and Merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. PRを自動作成（既にPRが存在する場合はエラーになるため || true を付けて処理を続行させます）
+          # 1. PRを自動作成
           gh pr create --base main --head ${{ github.ref_name }} --title "Auto PR: ${{ github.ref_name }}" --body "GitHub Actionsにより自動作成・マージされたPRです" || true
 
-          # GitHubシステム側に dev-ci のジョブが登録されるまで数秒待ちます
           sleep 10
 
-          # 2. CI (テスト) が完了するまで待機する
+          # 2. dev CI (test-and-build) の完了だけをピンポイントで監視する
           echo "dev CI のテスト完了を待機しています..."
-          gh pr checks ${{ github.ref_name }} --watch
+          while true; do
+            # gh pr checks の結果から test-and-build の行のステータス（2列目）を抽出
+            STATUS=$(gh pr checks ${{ github.ref_name }} | grep "test-and-build" | awk '{print $2}')
+            
+            if [[ "$STATUS" == "pass" ]]; then
+              echo "テストが成功しました！ループを抜けます。"
+              break
+            elif [[ "$STATUS" == "fail" || "$STATUS" == "error" ]]; then
+              echo "テストが失敗しました。マージを中止します。"
+              exit 1
+            fi
+            
+            echo "まだテスト中です... 10秒待機します"
+            sleep 10
+          done
 
-          # 3. テストが成功した場合のみマージされる
-          echo "テストが成功しました！mainブランチへマージします。"
+          # 3. テスト成功時のみマージ実行
+          echo "mainブランチへマージします。"
           gh pr merge ${{ github.ref_name }} --merge --admin
