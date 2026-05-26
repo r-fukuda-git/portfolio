@@ -1,6 +1,5 @@
 name: Auto Create PR and Merge
 
-# どのブランチをプッシュした時に発動させるかを指定します
 on:
   push:
     branches:
@@ -13,13 +12,15 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      checks: read # 追加：テストの実行状況(Checks)を読み取る権限
+      statuses: read # 追加：コミットのステータスを読み取る権限
+      actions: read # 追加：Actionsの動作状況を読み取る権限
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Create PR, Wait for CI, and Merge
         env:
-          # GitHub Actionsが用意する一時的なトークンを利用します
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 1. PRを自動作成（既にPRが存在する場合はエラーになるため || true を付けて処理を続行させます）
@@ -28,10 +29,10 @@ jobs:
           # GitHubシステム側に dev-ci のジョブが登録されるまで数秒待ちます
           sleep 10
 
-          # 2. CI (テスト) が完了するまで待機する（ここが追加ポイント！）
+          # 2. CI (テスト) が完了するまで待機する
           echo "dev CI のテスト完了を待機しています..."
           gh pr checks ${{ github.ref_name }} --watch
 
-          # 3. テストが成功した場合のみ、ここが実行されてマージされるの
+          # 3. テストが成功した場合のみマージされる
           echo "テストが成功しました！mainブランチへマージします。"
           gh pr merge ${{ github.ref_name }} --merge --admin
