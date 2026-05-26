@@ -32,6 +32,6 @@ jobs:
           echo "dev CI のテスト完了を待機しています..."
           gh pr checks ${{ github.ref_name }} --watch
 
-          # 3. テストが成功した場合のみ、ここが実行されてマージされる
+          # 3. テストが成功した場合のみ、ここが実行されてマージされるの
           echo "テストが成功しました！mainブランチへマージします。"
           gh pr merge ${{ github.ref_name }} --merge --admin
