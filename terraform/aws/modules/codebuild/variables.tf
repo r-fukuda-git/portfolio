@@ -6,65 +6,86 @@ variable "project_name" {
   type = string
 }
 
+variable "project_suffix" {
+  type        = string
+  description = "CodeBuild project name suffix (e.g. dev-ci, main-cd)"
+}
+
 variable "description" {
   type    = string
-  default = "Build container image and produce ECS imagedefinitions.json"
+  default = "CodeBuild project"
 }
 
 variable "artifact_bucket_arn" {
   type = string
 }
 
-variable "ecr_repository_name" {
+variable "github_owner" {
   type = string
+}
+
+variable "github_repository" {
+  type = string
+}
+
+variable "github_status_context" {
+  type        = string
+  description = "GitHub commit status context label"
+  default     = "aws/codebuild"
+}
+
+variable "github_token_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN for GitHub PAT (repo:status). Secret JSON: {\"token\":\"...\"}"
+  default     = null
+  nullable    = true
+}
+
+variable "ecr_repository_name" {
+  type     = string
+  default  = null
+  nullable = true
 }
 
 variable "container_name" {
   type        = string
   description = "ECS task container name referenced in imagedefinitions.json"
+  default     = null
+  nullable    = true
 }
 
 variable "dockerfile_path" {
-  type        = string
-  description = "Dockerfile path relative to repository root"
-  default     = "Dockerfile"
+  type     = string
+  default  = null
+  nullable = true
 }
 
 variable "build_context" {
+  type     = string
+  default  = null
+  nullable = true
+}
+
+variable "go_module_path" {
   type        = string
-  description = "Docker build context path relative to repository root"
-  default     = "."
+  description = "Path to Go module relative to repository root"
+  default     = null
+  nullable    = true
+}
+
+variable "enable_ecr_access" {
+  type    = bool
+  default = false
+}
+
+variable "privileged_mode" {
+  type    = bool
+  default = false
 }
 
 variable "buildspec" {
   type        = string
   description = "CodeBuild buildspec document"
-  default     = <<-EOT
-    version: 0.2
-
-    phases:
-      pre_build:
-        commands:
-          - echo Logging in to Amazon ECR...
-          - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      build:
-        commands:
-          - echo Build started on `date`
-          - docker build -t $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION -f $DOCKERFILE_PATH $BUILD_CONTEXT
-          - docker tag $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
-          - docker tag $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-      post_build:
-        commands:
-          - echo Build completed on `date`
-          - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
-          - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-          - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION" > imagedefinitions.json
-          - cat imagedefinitions.json
-
-    artifacts:
-      files:
-        - imagedefinitions.json
-  EOT
 }
 
 variable "compute_type" {

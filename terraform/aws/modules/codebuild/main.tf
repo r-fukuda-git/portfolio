@@ -46,49 +46,64 @@ data "aws_iam_policy_document" "codebuild" {
     ]
   }
 
-  statement {
-    sid    = "ECRAccess"
-    effect = "Allow"
-    actions = [
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:CompleteLayerUpload",
-      "ecr:GetAuthorizationToken",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart",
-      "ecr:BatchGetImage",
-      "ecr:GetDownloadUrlForLayer",
-    ]
-    resources = ["*"]
+  dynamic "statement" {
+    for_each = var.enable_ecr_access ? [1] : []
+    content {
+      sid    = "ECRAccess"
+      effect = "Allow"
+      actions = [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:GetAuthorizationToken",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.github_token_secret_arn != null ? [1] : []
+    content {
+      sid    = "GitHubStatusSecret"
+      effect = "Allow"
+      actions = [
+        "secretsmanager:GetSecretValue",
+      ]
+      resources = [var.github_token_secret_arn]
+    }
   }
 }
 
 resource "aws_iam_role" "this" {
-  name               = "${local.name_prefix}-codebuild-role"
+  name               = "${local.name_prefix}-${var.project_suffix}-codebuild-role"
   assume_role_policy = data.aws_iam_policy_document.codebuild_assume.json
 
   tags = {
-    Name = "${local.name_prefix}-codebuild-role"
+    Name = "${local.name_prefix}-${var.project_suffix}-codebuild-role"
   }
 }
 
 resource "aws_iam_role_policy" "this" {
-  name   = "${local.name_prefix}-codebuild-policy"
+  name   = "${local.name_prefix}-${var.project_suffix}-codebuild-policy"
   role   = aws_iam_role.this.id
   policy = data.aws_iam_policy_document.codebuild.json
 }
 
 resource "aws_cloudwatch_log_group" "this" {
-  name              = "/aws/codebuild/${local.name_prefix}-build"
+  name              = "/aws/codebuild/${local.name_prefix}-${var.project_suffix}"
   retention_in_days = var.log_retention_in_days
 
   tags = {
-    Name = "${local.name_prefix}-codebuild-logs"
+    Name = "${local.name_prefix}-${var.project_suffix}-codebuild-logs"
   }
 }
 
 resource "aws_codebuild_project" "this" {
-  name          = "${local.name_prefix}-build"
+  name          = "${local.name_prefix}-${var.project_suffix}"
   description   = var.description
   service_role  = aws_iam_role.this.arn
   build_timeout = var.build_timeout
@@ -101,7 +116,7 @@ resource "aws_codebuild_project" "this" {
     compute_type                = var.compute_type
     image                       = var.build_image
     type                        = "LINUX_CONTAINER"
-    privileged_mode             = true
+    privileged_mode             = var.privileged_mode
     image_pull_credentials_type = "CODEBUILD"
 
     environment_variable {
@@ -115,23 +130,67 @@ resource "aws_codebuild_project" "this" {
     }
 
     environment_variable {
-      name  = "IMAGE_REPO_NAME"
-      value = var.ecr_repository_name
+      name  = "GITHUB_OWNER"
+      value = var.github_owner
     }
 
     environment_variable {
-      name  = "CONTAINER_NAME"
-      value = var.container_name
+      name  = "GITHUB_REPOSITORY"
+      value = var.github_repository
     }
 
     environment_variable {
-      name  = "DOCKERFILE_PATH"
-      value = var.dockerfile_path
+      name  = "GITHUB_STATUS_CONTEXT"
+      value = var.github_status_context
     }
 
-    environment_variable {
-      name  = "BUILD_CONTEXT"
-      value = var.build_context
+    dynamic "environment_variable" {
+      for_each = var.ecr_repository_name != null ? [1] : []
+      content {
+        name  = "IMAGE_REPO_NAME"
+        value = var.ecr_repository_name
+      }
+    }
+
+    dynamic "environment_variable" {
+      for_each = var.container_name != null ? [1] : []
+      content {
+        name  = "CONTAINER_NAME"
+        value = var.container_name
+      }
+    }
+
+    dynamic "environment_variable" {
+      for_each = var.dockerfile_path != null ? [1] : []
+      content {
+        name  = "DOCKERFILE_PATH"
+        value = var.dockerfile_path
+      }
+    }
+
+    dynamic "environment_variable" {
+      for_each = var.build_context != null ? [1] : []
+      content {
+        name  = "BUILD_CONTEXT"
+        value = var.build_context
+      }
+    }
+
+    dynamic "environment_variable" {
+      for_each = var.go_module_path != null ? [1] : []
+      content {
+        name  = "GO_MODULE_PATH"
+        value = var.go_module_path
+      }
+    }
+
+    dynamic "environment_variable" {
+      for_each = var.github_token_secret_arn != null ? [1] : []
+      content {
+        name  = "GITHUB_TOKEN"
+        type  = "SECRETS_MANAGER"
+        value = "${var.github_token_secret_arn}:token::"
+      }
     }
   }
 
@@ -148,6 +207,6 @@ resource "aws_codebuild_project" "this" {
   }
 
   tags = {
-    Name = "${local.name_prefix}-build"
+    Name = "${local.name_prefix}-${var.project_suffix}"
   }
 }

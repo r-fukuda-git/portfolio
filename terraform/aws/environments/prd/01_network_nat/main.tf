@@ -13,6 +13,6 @@ module "nat_gateway" {
   route_cidr_block         = var.route_cidr_block
   availability_zone_suffix = var.availability_zone_suffix
 
-  public_subnet_id         = data.terraform_remote_state.network.outputs.subnet_public_id_1a
-  private_route_table_id   = data.terraform_remote_state.network.outputs.private_route_table_id
+  public_subnet_id       = data.terraform_remote_state.network.outputs.subnet_public_id_1a
+  private_route_table_id = data.terraform_remote_state.network.outputs.private_route_table_id
 }
