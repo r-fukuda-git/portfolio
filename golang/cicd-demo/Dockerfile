@@ -13,7 +13,8 @@ WORKDIR /app
 COPY --from=builder /app/server ./server
 
 ENV PORT=8080
-ENV APP_VERSION=1.0.0
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 EXPOSE 8080
 
 USER appuser

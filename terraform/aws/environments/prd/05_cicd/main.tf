@@ -1,5 +1,3 @@
-data "aws_caller_identity" "current" {}
-
 data "terraform_remote_state" "iam" {
   backend = "s3"
   config = merge(local.terraform_remote_state_base, {
@@ -24,9 +22,9 @@ data "terraform_remote_state" "ecr" {
 module "github_actions_oidc" {
   source = "../../../modules/github_actions_oidc"
 
-  env             = var.env
-  project_name    = var.project_name
-  github_owner    = var.github_owner
+  env               = var.env
+  project_name      = var.project_name
+  github_owner      = var.github_owner
   github_repository = var.github_repository
 
   main_deploy_branches = [var.main_branch]

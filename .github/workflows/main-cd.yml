@@ -1,81 +1,103 @@
-name: main CI/CD
+# main ブランチ push → ECR push → ECS サービス更新
+# 事前設定: GitHub Repository variables に AWS_DEPLOY_ROLE_ARN（05_cicd output: github_actions_main_role_arn）
+name: Main CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - "golang/cicd-demo/**"
+      - ".github/workflows/main-cd.yml"
+  workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write
+concurrency:
+  group: main-cd
+  cancel-in-progress: false
 
 env:
   AWS_REGION: ap-northeast-1
-  GO_VERSION: "1.22"
-  GO_MODULE_PATH: golang/cicd-demo
-  DOCKERFILE_PATH: golang/cicd-demo/Dockerfile
-  BUILD_CONTEXT: golang/cicd-demo
   ECR_REPOSITORY: r-fukuda-prd-app
   ECS_CLUSTER: r-fukuda-prd-ecs-cluster
   ECS_SERVICE: r-fukuda-prd-service
   ECS_CONTAINER_NAME: r-fukuda-prd-service-container
-  ECS_TASK_DEFINITION_FAMILY: r-fukuda-prd-service-task
+  ECS_TASK_FAMILY: r-fukuda-prd-service-task
+  DOCKERFILE_PATH: golang/cicd-demo/Dockerfile
+  BUILD_CONTEXT: golang/cicd-demo
 
 jobs:
-  test-build-push-deploy:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-24.04-arm64
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Go test
-        working-directory: ${{ env.GO_MODULE_PATH }}
-        run: go test ./...
-
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Resolve ECR registry
+        id: ecr
+        run: |
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          registry="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          image_uri="${registry}/${ECR_REPOSITORY}"
+          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+          echo "image_uri=${image_uri}" >> "$GITHUB_OUTPUT"
+
+      - name: Go test
+        working-directory: golang/cicd-demo
+        run: go test ./...
 
       - name: Build and push image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ${{ env.BUILD_CONTEXT }}
           file: ${{ env.DOCKERFILE_PATH }}
-          platforms: linux/arm64
           push: true
+          platforms: linux/arm64
+          build-args: |
+            APP_VERSION=${{ github.sha }}
           tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ steps.ecr.outputs.image_uri }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.image_uri }}:latest
 
       - name: Download task definition
         run: |
           aws ecs describe-task-definition \
-            --task-definition "${{ env.ECS_TASK_DEFINITION_FAMILY }}" \
-            --query taskDefinition > task-definition.json
+            --task-definition "${ECS_TASK_FAMILY}" \
+            --query taskDefinition \
+            --output json | jq 'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )' > task-definition.json
+
+      - name: Render Amazon ECS task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.ECS_CONTAINER_NAME }}
+          image: ${{ steps.ecr.outputs.image_uri }}:${{ github.sha }}
 
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: task-definition.json
+          task-definition: ${{ steps.render.outputs.task-definition }}
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
-          container-name: ${{ env.ECS_CONTAINER_NAME }}
-          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
