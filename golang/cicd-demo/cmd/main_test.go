@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// main処理
 func TestHealthEndpoint(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
