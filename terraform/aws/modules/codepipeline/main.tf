@@ -32,16 +32,12 @@ data "aws_iam_policy_document" "codepipeline" {
   }
 
   statement {
-    sid    = "CodeCommitSource"
+    sid    = "CodeStarConnection"
     effect = "Allow"
     actions = [
-      "codecommit:GetBranch",
-      "codecommit:GetCommit",
-      "codecommit:UploadArchive",
-      "codecommit:GetUploadArchiveStatus",
-      "codecommit:CancelUploadArchive",
+      "codestar-connections:UseConnection",
     ]
-    resources = [var.codecommit_repository_arn]
+    resources = [var.codestar_connection_arn]
   }
 
   statement {
@@ -54,57 +50,94 @@ data "aws_iam_policy_document" "codepipeline" {
     resources = [var.codebuild_project_arn]
   }
 
-  statement {
-    sid    = "ECSDeploy"
-    effect = "Allow"
-    actions = [
-      "ecs:DescribeServices",
-      "ecs:DescribeTaskDefinition",
-      "ecs:DescribeTasks",
-      "ecs:ListTasks",
-      "ecs:RegisterTaskDefinition",
-      "ecs:UpdateService",
-    ]
-    resources = ["*"]
+  dynamic "statement" {
+    for_each = var.include_deploy_stage ? [1] : []
+    content {
+      sid    = "ECSDeploy"
+      effect = "Allow"
+      actions = [
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition",
+        "ecs:DescribeTasks",
+        "ecs:ListTasks",
+        "ecs:RegisterTaskDefinition",
+        "ecs:UpdateService",
+      ]
+      resources = ["*"]
+    }
   }
 
-  statement {
-    sid    = "PassExecutionRole"
-    effect = "Allow"
-    actions = [
-      "iam:PassRole",
-    ]
-    resources = [var.ecs_task_execution_role_arn]
-    condition {
-      test     = "StringLike"
-      variable = "iam:PassedToService"
-      values   = ["ecs-tasks.amazonaws.com"]
+  dynamic "statement" {
+    for_each = var.include_deploy_stage ? [1] : []
+    content {
+      sid    = "PassExecutionRole"
+      effect = "Allow"
+      actions = [
+        "iam:PassRole",
+      ]
+      resources = [var.ecs_task_execution_role_arn]
+      condition {
+        test     = "StringLike"
+        variable = "iam:PassedToService"
+        values   = ["ecs-tasks.amazonaws.com"]
+      }
     }
   }
 }
 
 resource "aws_iam_role" "this" {
-  name               = "${local.name_prefix}-codepipeline-role"
+  name               = "${local.name_prefix}-${var.pipeline_suffix}-codepipeline-role"
   assume_role_policy = data.aws_iam_policy_document.codepipeline_assume.json
 
   tags = {
-    Name = "${local.name_prefix}-codepipeline-role"
+    Name = "${local.name_prefix}-${var.pipeline_suffix}-codepipeline-role"
   }
 }
 
 resource "aws_iam_role_policy" "this" {
-  name   = "${local.name_prefix}-codepipeline-policy"
+  name   = "${local.name_prefix}-${var.pipeline_suffix}-codepipeline-policy"
   role   = aws_iam_role.this.id
   policy = data.aws_iam_policy_document.codepipeline.json
 }
 
 resource "aws_codepipeline" "this" {
-  name     = "${local.name_prefix}-pipeline"
-  role_arn = aws_iam_role.this.arn
+  name          = "${local.name_prefix}-${var.pipeline_suffix}-pipeline"
+  role_arn      = aws_iam_role.this.arn
+  pipeline_type = "V2"
 
   artifact_store {
     location = var.artifact_bucket_name
     type     = "S3"
+  }
+
+  dynamic "trigger" {
+    for_each = length(var.trigger_push_branches) > 0 || length(var.trigger_pull_request_branches) > 0 ? [1] : []
+    content {
+      provider_type = "CodeStarSourceConnection"
+
+      git_configuration {
+        source_action_name = "Source"
+
+        dynamic "push" {
+          for_each = length(var.trigger_push_branches) > 0 ? [1] : []
+          content {
+            branches {
+              includes = var.trigger_push_branches
+            }
+          }
+        }
+
+        dynamic "pull_request" {
+          for_each = length(var.trigger_pull_request_branches) > 0 ? [1] : []
+          content {
+            events = ["OPEN", "UPDATED"]
+            branches {
+              includes = var.trigger_pull_request_branches
+            }
+          }
+        }
+      }
+    }
   }
 
   stage {
@@ -114,14 +147,15 @@ resource "aws_codepipeline" "this" {
       name             = "Source"
       category         = "Source"
       owner            = "AWS"
-      provider         = "CodeCommit"
+      provider         = "CodeStarSourceConnection"
       version          = "1"
       output_artifacts = ["source_output"]
 
       configuration = {
-        RepositoryName       = var.codecommit_repository_name
-        BranchName           = var.source_branch
-        PollForSourceChanges = var.poll_for_source_changes
+        ConnectionArn    = var.codestar_connection_arn
+        FullRepositoryId = "${var.github_owner}/${var.github_repository}"
+        BranchName       = var.source_branch
+        DetectChanges    = false
       }
     }
   }
@@ -130,13 +164,14 @@ resource "aws_codepipeline" "this" {
     name = "Build"
 
     action {
-      name             = "Build"
-      category         = "Build"
-      owner            = "AWS"
-      provider         = "CodeBuild"
-      version          = "1"
-      input_artifacts  = ["source_output"]
-      output_artifacts = ["build_output"]
+      name            = "Build"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      version         = "1"
+      input_artifacts = ["source_output"]
+
+      output_artifacts = var.include_deploy_stage ? ["build_output"] : null
 
       configuration = {
         ProjectName = var.codebuild_project_name
@@ -144,34 +179,37 @@ resource "aws_codepipeline" "this" {
     }
   }
 
-  stage {
-    name = "Deploy"
+  dynamic "stage" {
+    for_each = var.include_deploy_stage ? [1] : []
+    content {
+      name = "Deploy"
 
-    action {
-      name            = "Deploy"
-      category        = "Deploy"
-      owner           = "AWS"
-      provider        = "ECS"
-      version         = "1"
-      input_artifacts = ["build_output"]
+      action {
+        name            = "Deploy"
+        category        = "Deploy"
+        owner           = "AWS"
+        provider        = "ECS"
+        version         = "1"
+        input_artifacts = ["build_output"]
 
-      configuration = {
-        ClusterName = var.ecs_cluster_name
-        ServiceName = var.ecs_service_name
-        FileName    = "imagedefinitions.json"
+        configuration = {
+          ClusterName = var.ecs_cluster_name
+          ServiceName = var.ecs_service_name
+          FileName    = "imagedefinitions.json"
+        }
       }
     }
   }
 
   tags = {
-    Name = "${local.name_prefix}-pipeline"
+    Name = "${local.name_prefix}-${var.pipeline_suffix}-pipeline"
   }
 }
 
 resource "aws_codestarnotifications_notification_rule" "pipeline" {
   count = var.enable_notifications && var.notification_target_arn != null ? 1 : 0
 
-  name        = "${local.name_prefix}-pipeline-notifications"
+  name        = "${local.name_prefix}-${var.pipeline_suffix}-pipeline-notifications"
   detail_type = "FULL"
   resource    = aws_codepipeline.this.arn
 
@@ -186,6 +224,6 @@ resource "aws_codestarnotifications_notification_rule" "pipeline" {
   }
 
   tags = {
-    Name = "${local.name_prefix}-pipeline-notifications"
+    Name = "${local.name_prefix}-${var.pipeline_suffix}-pipeline-notifications"
   }
 }
