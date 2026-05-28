@@ -11,6 +11,8 @@ on:
       # CDの実行条件や権限/IAMを更新した場合もデプロイを回す
       - "terraform/aws/environments/prd/05_cicd/**"
       - "terraform/aws/modules/github_actions_oidc/**"
+      - "golang/*"
+      - "terraform/*"
   workflow_dispatch:
 
 concurrency:
