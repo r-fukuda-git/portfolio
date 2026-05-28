@@ -43,7 +43,7 @@ func main() {
 <head><meta charset="utf-8"><title>CI/CD Demo</title></head>
 <body>
   <h1>Portfolio CI/CD Demo</h1>
-  <p>Go sample app deployed via ECRからECSへ変更.</p>
+  <p>Go sample app deployed via ECRからECSへ変更 修正.</p>
   <ul>
     <li>Version: %s</li>
     <li>Time: %s</li>
