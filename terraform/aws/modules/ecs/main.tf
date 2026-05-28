@@ -25,6 +25,7 @@ resource "aws_ecs_task_definition" "service" {
   cpu                      = var.service_task_cpu
   memory                   = var.service_task_memory
   execution_role_arn       = var.execution_role_arn
+  task_role_arn            = var.task_role_arn
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -131,6 +132,7 @@ resource "aws_ecs_task_definition" "standalone" {
   cpu                      = var.standalone_task_cpu
   memory                   = var.standalone_task_memory
   execution_role_arn       = var.execution_role_arn
+  task_role_arn            = var.task_role_arn
 
   container_definitions = jsonencode([
     {

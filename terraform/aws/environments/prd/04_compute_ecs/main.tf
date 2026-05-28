@@ -45,6 +45,7 @@ module "ecs" {
   service_desired_count  = var.service_desired_count
 
   execution_role_arn = data.terraform_remote_state.iam.outputs.ecs_task_execution_role_arn
+  task_role_arn      = data.terraform_remote_state.iam.outputs.ecs_task_role_arn
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
 
   subnet_ids = [

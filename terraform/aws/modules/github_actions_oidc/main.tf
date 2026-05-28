@@ -95,7 +95,10 @@ data "aws_iam_policy_document" "github_actions_main" {
     actions = [
       "iam:PassRole",
     ]
-    resources = [var.ecs_task_execution_role_arn]
+    resources = [
+      var.ecs_task_execution_role_arn,
+      var.ecs_task_role_arn,
+    ]
     condition {
       test     = "StringLike"
       variable = "iam:PassedToService"

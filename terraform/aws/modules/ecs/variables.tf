@@ -10,6 +10,12 @@ variable "execution_role_arn" {
   type = string
 }
 
+variable "task_role_arn" {
+  type        = string
+  description = "Task role (taskRoleArn) for application containers. Use null to omit."
+  default     = null
+}
+
 variable "ecr_repository_url" {
   type        = string
   description = "ECR repository URL from 03_ecr remote state (image URI base)"
