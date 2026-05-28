@@ -8,6 +8,9 @@ on:
     paths:
       - "golang/cicd-demo/**"
       - ".github/workflows/main-cd.yml"
+      # CDの実行条件や権限/IAMを更新した場合もデプロイを回す
+      - "terraform/aws/environments/prd/05_cicd/**"
+      - "terraform/aws/modules/github_actions_oidc/**"
   workflow_dispatch:
 
 concurrency:
@@ -22,8 +25,9 @@ env:
   ECS_SERVICE: ${{ vars.ECS_SERVICE }}
   ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
   ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
-  DOCKERFILE_PATH: ${{ vars.DOCKERFILE_PATH }}
-  BUILD_CONTEXT: ${{ vars.BUILD_CONTEXT }}
+  # vars未設定でも動くように、コード側のデフォルトパスにフォールバック
+  DOCKERFILE_PATH: ${{ vars.DOCKERFILE_PATH || 'golang/cicd-demo/Dockerfile' }}
+  BUILD_CONTEXT: ${{ vars.BUILD_CONTEXT || 'golang/cicd-demo' }}
 
 jobs:
   deploy:
@@ -35,6 +39,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate required variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${AWS_REGION:-}" ]] || missing+=("AWS_REGION")
+          [[ -n "${ECR_REPOSITORY:-}" ]] || missing+=("ECR_REPOSITORY")
+          [[ -n "${ECS_CLUSTER:-}" ]] || missing+=("ECS_CLUSTER")
+          [[ -n "${ECS_SERVICE:-}" ]] || missing+=("ECS_SERVICE")
+          [[ -n "${ECS_CONTAINER_NAME:-}" ]] || missing+=("ECS_CONTAINER_NAME")
+          [[ -n "${ECS_TASK_FAMILY:-}" ]] || missing+=("ECS_TASK_FAMILY")
+          [[ -n "${{ vars.AWS_DEPLOY_ROLE_ARN }}" ]] || missing+=("AWS_DEPLOY_ROLE_ARN")
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing GitHub repository variables: ${missing[*]}" >&2
+            echo "Hint: terraform output github_actions_main_role_arn -> AWS_DEPLOY_ROLE_ARN" >&2
+            exit 1
+          fi
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
