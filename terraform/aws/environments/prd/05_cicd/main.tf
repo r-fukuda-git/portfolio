@@ -31,4 +31,5 @@ module "github_actions_oidc" {
 
   ecr_repository_arn          = data.terraform_remote_state.ecr.outputs.ecr_repository_arn
   ecs_task_execution_role_arn = data.terraform_remote_state.iam.outputs.ecs_task_execution_role_arn
+  ecs_task_role_arn           = data.terraform_remote_state.iam.outputs.ecs_task_role_arn
 }

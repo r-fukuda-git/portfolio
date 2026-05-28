@@ -27,3 +27,8 @@ variable "ecr_repository_arn" {
 variable "ecs_task_execution_role_arn" {
   type = string
 }
+
+variable "ecs_task_role_arn" {
+  type        = string
+  description = "ECS taskRoleArn (application role) to allow PassRole from GitHub Actions"
+}

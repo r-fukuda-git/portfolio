@@ -61,6 +61,18 @@ resource "aws_iam_role" "ecs" {
   }
 }
 
+## タスクロール作成（アプリケーション用）
+## - 実行ロール(execution role)と責務を分けるために用意
+## - 権限は利用側で必要に応じて付与する想定（ここでは最小構成）
+resource "aws_iam_role" "ecs_task" {
+  name               = "${var.project_name}-${var.env}-ecs-task-role"
+  assume_role_policy = data.aws_iam_policy_document.assumerole_ecs.json
+
+  tags = {
+    Name = "${var.project_name}-${var.env}-ecs-task-role"
+  }
+}
+
 ## ポリシー紐付け
 resource "aws_iam_role_policy_attachment" "ecs_policy" {
   role       = aws_iam_role.ecs.name

@@ -15,14 +15,15 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ap-northeast-1
-  ECR_REPOSITORY: r-fukuda-prd-app
-  ECS_CLUSTER: r-fukuda-prd-ecs-cluster
-  ECS_SERVICE: r-fukuda-prd-service
-  ECS_CONTAINER_NAME: r-fukuda-prd-service-container
-  ECS_TASK_FAMILY: r-fukuda-prd-service-task
-  DOCKERFILE_PATH: golang/cicd-demo/Dockerfile
-  BUILD_CONTEXT: golang/cicd-demo
+  # ハードコードを避け、Terraformの出力値を GitHub Repository Variables に設定して参照する
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
+  ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+  DOCKERFILE_PATH: ${{ vars.DOCKERFILE_PATH }}
+  BUILD_CONTEXT: ${{ vars.BUILD_CONTEXT }}
 
 jobs:
   deploy:
