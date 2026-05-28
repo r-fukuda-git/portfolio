@@ -74,71 +74,25 @@ flowchart TD
 
 destroy は上記の逆順。
 
-### 既存 `04_cicd` を `05_cicd` にリネームする場合（state 移行）
+## apply（コピペ用 / Makefile）
 
-S3 上の state キーを移し、`backend.hcl` の `key` を `prd/05_cicd/terraform.tfstate` に更新してから再 init する。
-
-```bash
-aws s3 mv \
-  s3://<terraform_state_bucket>/prd/04_cicd/terraform.tfstate \
-  s3://<terraform_state_bucket>/prd/05_cicd/terraform.tfstate
-
-cd terraform/aws/environments/prd/05_cicd
-terraform init -backend-config=backend.hcl -reconfigure -migrate-state
-```
-
-### 旧 `04_cicd` に ECR が含まれている場合
-
-1. `03_ecr` を apply する前に、旧 CI/CD スタックから ECR リソースを state から外す（`terraform state rm` で `module.ecr` 配下）
-2. `03_ecr` を apply（既存リポジトリと同名の場合は `terraform import` で取り込み）
-3. `05_cicd` を apply（ECR は `03_ecr` の remote state 参照に切り替わる）
-
-`repository_suffix` は `03_ecr` と `05_cicd` で同じ値に揃えること。
-
-### 既存 `03_compute_ecs` / `04_ecr` を `04_compute_ecs` / `03_ecr` にリネームする場合（state 移行）
-
-S3 上の state キーを移し、各スタックの `backend.hcl` を更新してから再 init する。
+前提として、`make init-bootstrap` と `make init-all`（または各スタックの `make init STACK=...`）で init 済みであること。
 
 ```bash
-aws s3 mv \
-  s3://<terraform_state_bucket>/prd/04_ecr/terraform.tfstate \
-  s3://<terraform_state_bucket>/prd/03_ecr/terraform.tfstate
-aws s3 mv \
-  s3://<terraform_state_bucket>/prd/03_compute_ecs/terraform.tfstate \
-  s3://<terraform_state_bucket>/prd/04_compute_ecs/terraform.tfstate
+cd terraform/aws
 
-cd terraform/aws/environments/prd/03_ecr
-terraform init -backend-config=backend.hcl -reconfigure -migrate-state
-cd ../04_compute_ecs
-terraform init -backend-config=backend.hcl -reconfigure -migrate-state
-cd ../05_cicd
-terraform init -backend-config=backend.hcl -reconfigure
+make apply STACK=bootstrap
+make apply STACK=00_iam
+make apply STACK=01_network
+make apply STACK=01_network_nat
+make apply STACK=02_database
+make apply STACK=03_compute_ec2
+make apply STACK=03_ecr
+make apply STACK=04_compute_ecs
+make apply STACK=05_cicd
 ```
 
-`04_compute_ecs` と `05_cicd` は remote state のキー参照が変わるため、上記のあと `terraform plan` で差分がないことを確認する。
-
-## 操作例
-
-### bootstrap
-
-```bash
-cd terraform/aws/bootstrap
-terraform init
-terraform apply
-```
-
-### 各スタック
-
-各スタックは `backend.hcl` と `terraform.tfvars` を持つ。`terraform.tfvars` に `terraform_state_bucket` / `terraform_state_key_prefix` を設定する。
-
-```bash
-cd terraform/aws/environments/prd/00_iam
-terraform init -backend-config=backend.hcl
-terraform plan
-terraform apply
-```
-
-他スタックも同様に、対象ディレクトリで `init -backend-config=backend.hcl` → `plan` → `apply` を実行する。
+`EXTRA_ARGS` で `terraform apply` に引数を渡せる（例: `EXTRA_ARGS="-auto-approve"`）。
 
 state キー形式: `{terraform_state_key_prefix}/{スタック名}/terraform.tfstate`（例: `prd/01_network/terraform.tfstate`）
 
