@@ -90,9 +90,8 @@ resource "aws_lb" "this" {
 }
 
 resource "aws_lb_target_group" "service" {
-  # port 変更時は TG 置換になる。固定 name だと create_before_destroy 時に名前衝突するため prefix を使う（ALB TG の name_prefix 上限は 6 文字）
-  name_prefix = substr("${var.project_name}-${var.env}-", 0, 6)
-  port        = var.service_container_port
+  name     = "${var.project_name}-${var.env}-tg"
+  port     = var.service_container_port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -109,10 +108,6 @@ resource "aws_lb_target_group" "service" {
 
   tags = {
     Name = "${var.project_name}-${var.env}-tg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
   }
 }
 
