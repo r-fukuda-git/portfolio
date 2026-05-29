@@ -10,6 +10,76 @@
 | `modules/` | 再利用モジュール（VPC、SG、EC2、ECS、RDS、IAM、CI/CD など） |
 | `environments/prd/` | 本番想定スタック（スタックごとに独立した state） |
 
+## AWS 構成図（prd）
+
+リージョン `ap-northeast-1`。VPC `192.168.0.0/16` は `01_network`、NAT は任意の `01_network_nat`。
+
+```mermaid
+flowchart TB
+  subgraph ext["外部"]
+    user[利用者 / 管理者]
+    gha[GitHub Actions]
+  end
+
+  subgraph mgmt["bootstrap（VPC 外）"]
+    s3[(S3\nTerraform State)]
+    lock[(DynamoDB\nState Lock)]
+  end
+
+  subgraph region["ap-northeast-1"]
+    subgraph vpc["VPC 192.168.0.0/16"]
+      igw[Internet Gateway]
+
+      subgraph public["パブリックサブネット（1a / 1c）"]
+        alb[ALB :80\n04_compute_ecs]
+        ec2[EC2 + web-sg\n03_compute_ec2]
+        nat[NAT Gateway\n01_network_nat 任意]
+      end
+
+      subgraph private["プライベートサブネット（1a / 1c）"]
+        rds[(RDS MySQL\n02_database)]
+        ecs[ECS Fargate Service\n04_compute_ecs]
+        vpce[VPC Endpoints\n03_ecr]
+      end
+    end
+
+    ecr[ECR リポジトリ\n03_ecr]
+    iam_ec2[EC2 Instance Profile\nSSM 等]
+    iam_ecs[ECS Task / Execution Role]
+    oidc[GitHub Actions OIDC Role\n05_cicd]
+    logs[CloudWatch Logs]
+  end
+
+  user -->|HTTP/HTTPS| igw
+  user -->|SSH| igw
+  igw --> alb
+  igw --> ec2
+  nat -.->|0.0.0.0/0 任意| igw
+  nat -.-> private
+
+  alb -->|ターゲットグループ| ecs
+  ec2 -->|3306 db-sg| rds
+
+  ecs --> vpce
+  vpce --> ecr
+  ecs --> logs
+
+  ec2 --- iam_ec2
+  ecs --- iam_ecs
+
+  gha -->|AssumeRoleWithWebIdentity| oidc
+  oidc -->|push| ecr
+  oidc -->|RegisterTaskDefinition / UpdateService| ecs
+```
+
+| 配置 | リソース | スタック |
+|------|----------|----------|
+| パブリック | ALB、EC2（`use_database_security_groups=true` 時は `02_database` の web-sg） | `04_compute_ecs` / `03_compute_ec2` |
+| プライベート | RDS、ECS タスク（`assign_public_ip=false`）、VPC Endpoint（ECR API/DKR、Logs、ECS、S3 Gateway） | `02_database` / `04_compute_ecs` / `03_ecr` |
+| VPC 外・グローバル | ECR、IAM ロール、GitHub OIDC、Terraform state | `03_ecr` / `00_iam` / `05_cicd` / `bootstrap` |
+
+プライベートサブネットの ECS は `03_ecr` の VPC Endpoint 経由でイメージ取得可能（NAT なし運用向け）。NAT が必要な外向き通信は `01_network_nat` を追加する。
+
 ## スタック一覧
 
 | スタック | パス | 主なリソース | 参照する remote state |
@@ -20,9 +90,9 @@
 | 01_network_nat | `environments/prd/01_network_nat/` | NAT Gateway、プライベート RT への 0.0.0.0/0（任意） | `01_network` |
 | 02_database | `environments/prd/02_database/` | RDS、web/db 用 SG | `01_network` |
 | 03_compute_ec2 | `environments/prd/03_compute_ec2/` | EC2 | `00_iam`, `01_network`, （任意）`02_database` |
-| 03_ecr | `environments/prd/03_ecr/` | ECR リポジトリ（イメージ push 先） | なし |
-| 04_compute_ecs | `environments/prd/04_compute_ecs/` | ECS（Fargate）+ ALB、ECS/ALB 用 SG | `00_iam`, `01_network`, `03_ecr` |
-| 05_cicd | `environments/prd/05_cicd/` | CodeCommit、CodeBuild、CodePipeline | `00_iam`, `04_compute_ecs`, `03_ecr` |
+| 03_ecr | `environments/prd/03_ecr/` | ECR リポジトリ、ECS 向け VPC Endpoint（Interface + S3 Gateway） | `01_network` |
+| 04_compute_ecs | `environments/prd/04_compute_ecs/` | ECS（Fargate ARM64）+ ALB、ECS/ALB 用 SG、スタンドアロンタスク（任意スケジュール） | `00_iam`, `01_network`, `03_ecr` |
+| 05_cicd | `environments/prd/05_cicd/` | GitHub Actions OIDC（ECR push / ECS deploy 用 IAM ロール） | `00_iam`, `03_ecr`, `04_compute_ecs`（outputs 参照） |
 
 `modules/eip` は Elastic IP 用モジュールだが、現状どのスタックからも未参照。
 
@@ -52,6 +122,7 @@ flowchart TD
   network --> database
   network --> ec2
   network --> ecs
+  network --> ecr
   iam --> ec2
   iam --> ecs
   iam --> cicd
@@ -67,7 +138,7 @@ flowchart TD
 2. **00_iam** と **01_network**（相互依存なし。並列可）
 3. **01_network_nat**（プライベートからインターネット egress が必要なときのみ。`01_network` 完了後）
 4. **02_database**（`01_network` 完了後）
-5. **03_compute_ec2** と **03_ecr**（`00_iam` + `01_network` 完了後。EC2 と ECR は相互依存なし。並列可）
+5. **03_compute_ec2** と **03_ecr**（`01_network` 完了後。EC2 は `00_iam` も必要。EC2 と ECR は相互依存なし。並列可）
    - EC2 で `use_database_security_groups = true` の場合は **02_database** も先に apply すること
 6. **04_compute_ecs**（`00_iam` + `01_network` + **03_ecr** 完了後。イメージ tag が ECR に存在すること）
 7. **05_cicd**（`04_compute_ecs` と `03_ecr` 完了後）
@@ -118,5 +189,6 @@ Terraform 変数は `snake_case` に統一する。AWS API が camelCase を要�
 | `ecs` | ECS クラスター、Fargate サービス、ALB、スタンドアロンタスク |
 | `rds` | RDS PostgreSQL |
 | `ecr` | ECR リポジトリ（`03_ecr` スタック） |
-| `codecommit` / `codebuild` / `codepipeline` | CI/CD パイプライン（`05_cicd` スタック） |
+| `vpc_endpoints_ecs` | プライベートサブネット向け ECR / Logs / ECS / S3 VPC Endpoint（`03_ecr` スタック） |
+| `github_actions_oidc` | GitHub Actions からの OIDC 連携 IAM（`05_cicd` スタック） |
 | `eip` | Elastic IP（未接続） |
