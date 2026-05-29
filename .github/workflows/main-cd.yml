@@ -19,9 +19,6 @@ env:
   ECS_SERVICE: ${{ vars.ECS_SERVICE }}
   ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
   ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
-  # vars未設定でも動くように、コード側のデフォルトパスにフォールバック
-  DOCKERFILE_PATH: ${{ vars.DOCKERFILE_PATH || 'golang/cicd-demo/Dockerfile' }}
-  BUILD_CONTEXT: ${{ vars.BUILD_CONTEXT || 'golang/cicd-demo' }}
 
 jobs:
   deploy:
@@ -33,6 +30,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Load CI paths
+        uses: ./.github/actions/load-ci-paths
 
       - name: Validate required variables
         shell: bash
@@ -70,8 +70,14 @@ jobs:
           echo "registry=${registry}" >> "$GITHUB_OUTPUT"
           echo "image_uri=${image_uri}" >> "$GITHUB_OUTPUT"
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ${{ env.GO_MODULE_PATH }}/go.mod
+
       - name: Go test
-        working-directory: golang/cicd-demo
+        working-directory: ${{ env.GO_MODULE_PATH }}
         run: go test ./...
 
       - name: Build and push image
