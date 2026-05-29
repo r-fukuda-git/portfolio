@@ -67,6 +67,12 @@ variable "health_check_path" {
   default     = "/"
 }
 
+variable "service_log_retention_in_days" {
+  type        = number
+  description = "CloudWatch Logs retention for the ECS service container"
+  default     = 14
+}
+
 variable "service_task_cpu" {
   type    = number
   default = 256
