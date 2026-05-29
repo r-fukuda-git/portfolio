@@ -12,11 +12,12 @@ output "github_actions_main_role_name" {
 }
 
 output "ecs_cluster_name" {
-  value = data.terraform_remote_state.ecs.outputs.ecs_cluster_name
+  # modules/ecs と同一命名。04_compute_ecs 未 apply でも plan 可能にする
+  value = "${var.project_name}-${var.env}-ecs-cluster"
 }
 
 output "ecs_service_name" {
-  value = data.terraform_remote_state.ecs.outputs.ecs_service_name
+  value = "${var.project_name}-${var.env}-service"
 }
 
 output "ecr_repository_name" {

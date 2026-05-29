@@ -33,23 +33,3 @@ variable "health_check_path" {
   description = "ALB target group health check path (cicd-demo: /health)"
   default     = "/health"
 }
-
-variable "standalone_image" {
-  type    = string
-  default = ""
-}
-
-variable "standalone_command" {
-  type    = list(string)
-  default = ["sh", "-c", "echo standalone task completed"]
-}
-
-variable "standalone_schedule_enabled" {
-  type    = bool
-  default = false
-}
-
-variable "standalone_schedule_expression" {
-  type    = string
-  default = "rate(1 day)"
-}

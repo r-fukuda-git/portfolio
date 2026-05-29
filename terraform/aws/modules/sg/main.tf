@@ -1,3 +1,9 @@
+locals {
+  # 重複 CIDR は AWS API が拒否するため plan/apply 前に除去
+  source_cidr_blocks = distinct(var.source_cidr_blocks)
+  target_cidr_blocks = distinct(var.target_cidr_blocks)
+}
+
 resource "aws_security_group" "web_public" {
   count = var.create_web_and_db_security_groups ? 1 : 0
 
@@ -17,7 +23,7 @@ resource "aws_security_group_rule" "ingress_allow_http" {
   from_port         = 80
   to_port           = 80
   protocol          = "tcp"
-  cidr_blocks       = var.source_cidr_blocks
+  cidr_blocks       = local.source_cidr_blocks
   security_group_id = aws_security_group.web_public[0].id
   description       = "Allow HTTP"
 }
@@ -29,7 +35,7 @@ resource "aws_security_group_rule" "ingress_allow_https" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = var.source_cidr_blocks
+  cidr_blocks       = local.source_cidr_blocks
   security_group_id = aws_security_group.web_public[0].id
   description       = "Allow HTTPS"
 }
@@ -41,7 +47,7 @@ resource "aws_security_group_rule" "ingress_allow_ssh" {
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = var.source_cidr_blocks
+  cidr_blocks       = local.source_cidr_blocks
   security_group_id = aws_security_group.web_public[0].id
   description       = "Allow SSH"
 }
@@ -53,7 +59,7 @@ resource "aws_security_group_rule" "egress_all" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
-  cidr_blocks       = var.target_cidr_blocks
+  cidr_blocks       = local.target_cidr_blocks
   security_group_id = aws_security_group.web_public[0].id
   description       = "All"
 }
@@ -121,7 +127,7 @@ resource "aws_security_group_rule" "ingress_allow_http_alb" {
   from_port         = 80
   to_port           = 80
   protocol          = "tcp"
-  cidr_blocks       = var.source_cidr_blocks
+  cidr_blocks       = local.source_cidr_blocks
   security_group_id = aws_security_group.alb[0].id
   description       = "Allow HTTP to ALB"
 }
@@ -133,7 +139,7 @@ resource "aws_security_group_rule" "ingress_allow_https_alb" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = var.source_cidr_blocks
+  cidr_blocks       = local.source_cidr_blocks
   security_group_id = aws_security_group.alb[0].id
   description       = "Allow HTTPS to ALB"
 }
@@ -145,7 +151,7 @@ resource "aws_security_group_rule" "egress_all_alb" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
-  cidr_blocks       = var.target_cidr_blocks
+  cidr_blocks       = local.target_cidr_blocks
   security_group_id = aws_security_group.alb[0].id
   description       = "All"
 }
@@ -173,7 +179,7 @@ resource "aws_security_group_rule" "egress_all_ecs" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
-  cidr_blocks       = var.target_cidr_blocks
+  cidr_blocks       = local.target_cidr_blocks
   security_group_id = aws_security_group.ecs_sg[0].id
   description       = "All"
 }

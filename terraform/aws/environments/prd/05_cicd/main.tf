@@ -5,13 +5,6 @@ data "terraform_remote_state" "iam" {
   })
 }
 
-data "terraform_remote_state" "ecs" {
-  backend = "s3"
-  config = merge(local.terraform_remote_state_base, {
-    key = local.terraform_state_key.ecs
-  })
-}
-
 data "terraform_remote_state" "ecr" {
   backend = "s3"
   config = merge(local.terraform_remote_state_base, {
