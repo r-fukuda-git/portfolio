@@ -47,6 +47,7 @@ func main() {
   <ul>
     <li>Version: %s</li>
     <li>Time: %s</li>
+	<li>無事にデプロイされたらここに表示がされますよ。</li>
   </ul>
 </body>
 </html>`, version, time.Now().UTC().Format(time.RFC3339))
