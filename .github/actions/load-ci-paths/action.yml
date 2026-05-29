@@ -1,0 +1,27 @@
+name: Load CI paths
+description: .github/ci-paths.env を読み込み、派生パスを GITHUB_ENV に設定する
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        config="${GITHUB_WORKSPACE}/.github/ci-paths.env"
+        if [[ ! -f "$config" ]]; then
+          echo "Missing CI path config: $config" >&2
+          exit 1
+        fi
+        set -a
+        # shellcheck disable=SC1090
+        source "$config"
+        set +a
+        if [[ -z "${GO_MODULE_PATH:-}" ]]; then
+          echo "GO_MODULE_PATH is required in $config" >&2
+          exit 1
+        fi
+        {
+          echo "GO_MODULE_PATH=${GO_MODULE_PATH}"
+          echo "GO_VERSION=${GO_VERSION:-1.22}"
+          echo "BUILD_CONTEXT=${GO_MODULE_PATH}"
+          echo "DOCKERFILE_PATH=${GO_MODULE_PATH}/Dockerfile"
+        } >> "$GITHUB_ENV"
