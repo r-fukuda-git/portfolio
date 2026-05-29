@@ -91,7 +91,8 @@ flowchart TB
 | 02_database | `environments/prd/02_database/` | RDS、web/db 用 SG | `01_network` |
 | 03_compute_ec2 | `environments/prd/03_compute_ec2/` | EC2 | `00_iam`, `01_network`, （任意）`02_database` |
 | 03_ecr | `environments/prd/03_ecr/` | ECR リポジトリ、ECS 向け VPC Endpoint（Interface + S3 Gateway） | `01_network` |
-| 04_compute_ecs | `environments/prd/04_compute_ecs/` | ECS（Fargate ARM64）+ ALB、ECS/ALB 用 SG、スタンドアロンタスク（任意スケジュール） | `00_iam`, `01_network`, `03_ecr` |
+| 04_compute_ecs | `environments/prd/04_compute_ecs/` | ECS（Fargate ARM64）常駐 Service + ALB、ECS/ALB 用 SG | `00_iam`, `01_network`, `03_ecr` |
+| 04_compute_ecs_task | `environments/prd/04_compute_ecs_task/` | 単発 ECS タスク定義（手動 run-task / 任意スケジュール）。ALB なし | `00_iam`, `01_network`, `03_ecr`, `04_compute_ecs` |
 | 05_cicd | `environments/prd/05_cicd/` | GitHub Actions OIDC（ECR push / ECS deploy 用 IAM ロール） | `00_iam`, `03_ecr`, `04_compute_ecs`（outputs 参照） |
 
 `modules/eip` は Elastic IP 用モジュールだが、現状どのスタックからも未参照。
@@ -108,6 +109,7 @@ flowchart TD
   ec2[03_compute_ec2]
   ecr[03_ecr]
   ecs[04_compute_ecs]
+  ecs_task[04_compute_ecs_task]
   cicd[05_cicd]
 
   bootstrap -.->|state 基盤| iam
@@ -128,7 +130,9 @@ flowchart TD
   iam --> cicd
   database -->|use_database_security_groups=true 時| ec2
   ecr --> ecs
+  ecr --> ecs_task
   ecr --> cicd
+  ecs --> ecs_task
   ecs --> cicd
 ```
 
@@ -141,7 +145,8 @@ flowchart TD
 5. **03_compute_ec2** と **03_ecr**（`01_network` 完了後。EC2 は `00_iam` も必要。EC2 と ECR は相互依存なし。並列可）
    - EC2 で `use_database_security_groups = true` の場合は **02_database** も先に apply すること
 6. **04_compute_ecs**（`00_iam` + `01_network` + **03_ecr** 完了後。イメージ tag が ECR に存在すること）
-7. **05_cicd**（`04_compute_ecs` と `03_ecr` 完了後）
+7. **04_compute_ecs_task**（任意。`04_compute_ecs` 完了後。単発タスクのみ必要なとき）
+8. **05_cicd**（`04_compute_ecs` と `03_ecr` 完了後。GitHub → ECR → ECS Service の順は従来どおり）
 
 destroy は上記の逆順。
 
@@ -160,6 +165,7 @@ make apply STACK=02_database
 make apply STACK=03_compute_ec2
 make apply STACK=03_ecr
 make apply STACK=04_compute_ecs
+make apply STACK=04_compute_ecs_task
 make apply STACK=05_cicd
 ```
 
