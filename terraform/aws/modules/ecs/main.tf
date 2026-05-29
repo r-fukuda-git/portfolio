@@ -90,8 +90,8 @@ resource "aws_lb" "this" {
 }
 
 resource "aws_lb_target_group" "service" {
-  name        = "${var.project_name}-${var.env}-tg"
-  port        = var.service_container_port
+  name     = "${var.project_name}-${var.env}-tg"
+  port     = var.service_container_port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
