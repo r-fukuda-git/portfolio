@@ -26,3 +26,9 @@ variable "lifecycle_policy" {
   description = "JSON lifecycle policy document; null disables lifecycle policy"
   default     = null
 }
+
+variable "force_delete" {
+  type        = bool
+  description = "terraform destroy 時にイメージが残っていてもリポジトリを削除する"
+  default     = false
+}

@@ -14,6 +14,7 @@ module "ecr" {
   scan_on_push         = var.ecr_scan_on_push
   image_tag_mutability = var.image_tag_mutability
   lifecycle_policy     = var.lifecycle_policy
+  force_delete         = true
 }
 
 # プライベートサブネット上の ECS が NAT なしで ECR からイメージ取得できるようにする
