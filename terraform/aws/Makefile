@@ -7,7 +7,7 @@ STACK ?=
 EXTRA_ARGS ?=
 
 # init-all の走査順（README の apply 順に合わせる）
-STACKS := 00_iam 01_network 01_network_nat 02_database 03_compute_ec2 03_ecr 04_compute_ecs 04_compute_ecs_task 05_cicd 07_elasticache
+STACKS := 00_iam 01_network 01_network_nat 02_database 03_compute_ec2 03_ecr 04_compute_ecs 04_compute_ecs_task 05_cicd 06_efs 07_elasticache
 
 # これらのゴールだけ STACK 必須（make 単体では MAKECMDGOALS が空になり得るためホワイトリスト方式）
 NEEDS_STACK := init plan apply destroy validate providers
@@ -42,7 +42,7 @@ help:
 	@echo "  make init|plan|apply|destroy|validate STACK=<name>"
 	@echo "       STACK=bootstrap | 00_iam | 01_network | 01_network_nat | 02_database |"
 	@echo "                03_compute_ec2 | 03_ecr | 04_compute_ecs | 04_compute_ecs_task | 05_cicd |"
-	@echo "                07_elasticache"
+	@echo "                06_efs | 07_elasticache"
 	@echo "  make providers STACK=<name>      terraform providers（ロック確認用）"
 
 list:

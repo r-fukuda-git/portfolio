@@ -33,18 +33,3 @@ variable "health_check_path" {
   description = "ALB target group health check path (cicd-demo: /health)"
   default     = "/health"
 }
-
-variable "efs_expected_storage_gb" {
-  type    = number
-  default = 100
-}
-
-variable "efs_performance_mode" {
-  type    = string
-  default = "generalPurpose"
-}
-
-variable "efs_throughput_mode" {
-  type    = string
-  default = "bursting"
-}
