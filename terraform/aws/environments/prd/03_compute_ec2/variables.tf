@@ -29,9 +29,3 @@ variable "source_cidr_blocks" {
 variable "target_cidr_blocks" {
   type = list(string)
 }
-
-variable "use_database_security_groups" {
-  type        = bool
-  description = "true の場合、02_database で作成済みの SG を利用し、本スタックでは SG を作成しない"
-  default     = true
-}

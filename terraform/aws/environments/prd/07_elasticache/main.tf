@@ -5,13 +5,6 @@ data "terraform_remote_state" "network" {
   })
 }
 
-data "terraform_remote_state" "database" {
-  backend = "s3"
-  config = merge(local.terraform_remote_state_base, {
-    key = local.terraform_state_key.database
-  })
-}
-
 data "terraform_remote_state" "compute_ec2" {
   backend = "s3"
   config = merge(local.terraform_remote_state_base, {
@@ -37,7 +30,6 @@ module "elasticache" {
     data.terraform_remote_state.network.outputs.subnet_private_id_1c
   ]
   allowed_security_group_ids = compact([
-    data.terraform_remote_state.database.outputs.public_security_group_id,
     data.terraform_remote_state.compute_ec2.outputs.web_security_group_id,
     data.terraform_remote_state.compute_ecs.outputs.ecs_security_group_id,
   ])

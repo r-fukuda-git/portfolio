@@ -2,10 +2,16 @@ locals {
   # 重複 CIDR は AWS API が拒否するため plan/apply 前に除去
   source_cidr_blocks = distinct(var.source_cidr_blocks)
   target_cidr_blocks = distinct(var.target_cidr_blocks)
+
+  create_web_sg = var.create_web_and_db_security_groups || var.create_web_security_group
+  create_db_sg  = var.create_web_and_db_security_groups || var.create_db_security_group
+
+  # db SG のみ別スタックで作る場合は EC2 等の web SG を外部参照する
+  db_ingress_source_security_group_id = var.create_web_and_db_security_groups ? aws_security_group.web_public[0].id : var.db_ingress_source_security_group_id
 }
 
 resource "aws_security_group" "web_public" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_web_sg ? 1 : 0
 
   name   = "${var.project_name}-${var.env}-web-sg"
   vpc_id = var.vpc_id
@@ -17,7 +23,7 @@ resource "aws_security_group" "web_public" {
 }
 
 resource "aws_security_group_rule" "ingress_allow_http" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_web_sg ? 1 : 0
 
   type              = "ingress"
   from_port         = 80
@@ -29,7 +35,7 @@ resource "aws_security_group_rule" "ingress_allow_http" {
 }
 
 resource "aws_security_group_rule" "ingress_allow_https" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_web_sg ? 1 : 0
 
   type              = "ingress"
   from_port         = 443
@@ -41,7 +47,7 @@ resource "aws_security_group_rule" "ingress_allow_https" {
 }
 
 resource "aws_security_group_rule" "ingress_allow_ssh" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_web_sg ? 1 : 0
 
   type              = "ingress"
   from_port         = 22
@@ -53,7 +59,7 @@ resource "aws_security_group_rule" "ingress_allow_ssh" {
 }
 
 resource "aws_security_group_rule" "egress_all" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_web_sg ? 1 : 0
 
   type              = "egress"
   from_port         = 0
@@ -65,11 +71,11 @@ resource "aws_security_group_rule" "egress_all" {
 }
 
 output "public_sg_id" {
-  value = var.create_web_and_db_security_groups ? aws_security_group.web_public[0].id : null
+  value = local.create_web_sg ? aws_security_group.web_public[0].id : null
 }
 
 resource "aws_security_group" "db_private" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_db_sg ? 1 : 0
 
   name   = "${var.project_name}-${var.env}-db-sg"
   vpc_id = var.vpc_id
@@ -81,19 +87,19 @@ resource "aws_security_group" "db_private" {
 }
 
 resource "aws_security_group_rule" "ingress_allow_web_sg" {
-  count = var.create_web_and_db_security_groups ? 1 : 0
+  count = local.create_db_sg ? 1 : 0
 
   type                     = "ingress"
   from_port                = 3306
   to_port                  = 3306
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.web_public[0].id
+  source_security_group_id = local.db_ingress_source_security_group_id
   security_group_id        = aws_security_group.db_private[0].id
   description              = "Allow WebSG"
 }
 
 output "private_sg_id" {
-  value = var.create_web_and_db_security_groups ? aws_security_group.db_private[0].id : null
+  value = local.create_db_sg ? aws_security_group.db_private[0].id : null
 }
 
 resource "aws_security_group" "ecs_sg" {

@@ -5,6 +5,13 @@ data "terraform_remote_state" "network" {
   })
 }
 
+data "terraform_remote_state" "compute_ec2" {
+  backend = "s3"
+  config = merge(local.terraform_remote_state_base, {
+    key = local.terraform_state_key.compute_ec2
+  })
+}
+
 module "rds" {
   source       = "../../../modules/rds"
   project_name = var.project_name
@@ -34,10 +41,10 @@ module "security_group" {
   project_name       = var.project_name
   source_cidr_blocks = var.source_cidr_blocks
   target_cidr_blocks = var.target_cidr_blocks
+  vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
 
-  # Networkレイヤーから取得
-  vpc_id = data.terraform_remote_state.network.outputs.vpc_id
-
-  create_web_and_db_security_groups  = true
-  create_ecs_and_alb_security_groups = false
+  create_db_security_group            = true
+  create_web_and_db_security_groups   = false
+  create_ecs_and_alb_security_groups  = false
+  db_ingress_source_security_group_id = data.terraform_remote_state.compute_ec2.outputs.web_security_group_id
 }

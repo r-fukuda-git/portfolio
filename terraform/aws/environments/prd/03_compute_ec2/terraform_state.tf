@@ -21,8 +21,7 @@ locals {
   }
 
   terraform_state_key = {
-    iam      = "${var.terraform_state_key_prefix}/00_iam/terraform.tfstate"
-    network  = "${var.terraform_state_key_prefix}/01_network/terraform.tfstate"
-    database = "${var.terraform_state_key_prefix}/02_database/terraform.tfstate"
+    iam     = "${var.terraform_state_key_prefix}/00_iam/terraform.tfstate"
+    network = "${var.terraform_state_key_prefix}/01_network/terraform.tfstate"
   }
 }

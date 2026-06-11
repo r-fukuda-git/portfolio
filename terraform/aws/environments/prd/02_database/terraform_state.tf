@@ -21,6 +21,7 @@ locals {
   }
 
   terraform_state_key = {
-    network = "${var.terraform_state_key_prefix}/01_network/terraform.tfstate"
+    network     = "${var.terraform_state_key_prefix}/01_network/terraform.tfstate"
+    compute_ec2 = "${var.terraform_state_key_prefix}/03_compute_ec2/terraform.tfstate"
   }
 }

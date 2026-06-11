@@ -11,5 +11,5 @@ output "ec2_private_ips" {
 }
 
 output "web_security_group_id" {
-  value = local.web_security_group_id
+  value = module.security_group.public_sg_id
 }
