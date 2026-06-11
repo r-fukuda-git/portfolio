@@ -21,20 +21,6 @@ data "terraform_remote_state" "database" {
   })
 }
 
-data "terraform_remote_state" "efs" {
-  backend = "s3"
-  config = merge(local.terraform_remote_state_base, {
-    key = local.terraform_state_key.efs
-  })
-}
-
-data "terraform_remote_state" "elasticache" {
-  backend = "s3"
-  config = merge(local.terraform_remote_state_base, {
-    key = local.terraform_state_key.elasticache
-  })
-}
-
 module "security_group" {
   count = var.use_database_security_groups ? 0 : 1
 
