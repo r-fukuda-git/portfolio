@@ -13,3 +13,11 @@ output "ec2_private_ips" {
 output "web_security_group_id" {
   value = module.security_group.public_sg_id
 }
+
+output "efs_file_system_id" {
+  value = module.efs.file_system_id
+}
+
+output "efs_dns_name" {
+  value = module.efs.dns_name
+}

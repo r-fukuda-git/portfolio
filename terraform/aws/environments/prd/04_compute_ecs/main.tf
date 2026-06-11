@@ -62,3 +62,20 @@ module "ecs" {
 
   health_check_path = var.health_check_path
 }
+
+module "efs" {
+  source = "../../../modules/efs_stack"
+
+  project_name = var.project_name
+  env          = var.env
+  vpc_id       = data.terraform_remote_state.network.outputs.vpc_id
+  subnet_ids = [
+    data.terraform_remote_state.network.outputs.subnet_public_id_1a,
+    data.terraform_remote_state.network.outputs.subnet_public_id_1c
+  ]
+  client_security_group_ids = [module.security_group.private_ecs_sg_id]
+
+  expected_storage_gb = var.efs_expected_storage_gb
+  performance_mode    = var.efs_performance_mode
+  throughput_mode     = var.efs_throughput_mode
+}

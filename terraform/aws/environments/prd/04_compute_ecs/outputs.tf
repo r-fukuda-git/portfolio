@@ -17,3 +17,11 @@ output "ecs_security_group_id" {
 output "alb_security_group_id" {
   value = module.security_group.alb_sg_id
 }
+
+output "efs_file_system_id" {
+  value = module.efs.file_system_id
+}
+
+output "efs_dns_name" {
+  value = module.efs.dns_name
+}
