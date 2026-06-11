@@ -64,7 +64,8 @@ variable "final_snapshot_identifier" {
 }
 
 variable "copy_tags_to_snapshot" {
-  type = bool
+  type    = bool
+  default = true
 }
 
 variable "delete_automated_backups" {

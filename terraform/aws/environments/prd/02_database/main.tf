@@ -23,8 +23,9 @@ module "rds" {
   deletion_protection     = var.deletion_protection
   backup_window           = var.backup_window
   maintenance_window      = var.maintenance_window
-  backup_retention_period = var.backup_retention_period
-
+  backup_retention_period  = var.backup_retention_period
+  skip_final_snapshot      = var.skip_final_snapshot
+  delete_automated_backups = var.delete_automated_backups
 }
 
 module "security_group" {

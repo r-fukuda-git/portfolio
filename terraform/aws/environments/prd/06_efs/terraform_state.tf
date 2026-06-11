@@ -21,10 +21,9 @@ locals {
   }
 
   terraform_state_key = {
-    iam          = "${var.terraform_state_key_prefix}/00_iam/terraform.tfstate"
     network      = "${var.terraform_state_key_prefix}/01_network/terraform.tfstate"
     database     = "${var.terraform_state_key_prefix}/02_database/terraform.tfstate"
-    efs          = "${var.terraform_state_key_prefix}/06_efs/terraform.tfstate"
-    elasticache  = "${var.terraform_state_key_prefix}/07_elasticache/terraform.tfstate"
+    compute_ec2  = "${var.terraform_state_key_prefix}/03_compute_ec2/terraform.tfstate"
+    compute_ecs  = "${var.terraform_state_key_prefix}/04_compute_ecs/terraform.tfstate"
   }
 }
